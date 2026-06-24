@@ -111,7 +111,7 @@ const css = {
   nav:   { position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C.white, borderTop:"1px solid "+C.border, display:"flex", zIndex:200, boxShadow:"0 -2px 16px rgba(0,0,0,0.07)" },
   navB:  (a) => ({ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"10px 4px 8px", cursor:"pointer", color:a?C.green:C.textMuted, fontSize:10, fontWeight:a?700:500, gap:3, background:"transparent", border:"none", transition:"color 0.2s", borderTop: a?"2px solid "+C.green:"2px solid transparent" }),
   card:  { background:C.bgCard, borderRadius:16, padding:16, border:"1px solid "+C.border, marginBottom:12, boxShadow:"0 2px 12px rgba(22,163,74,0.10)" },
-  hero:  { background:linear-gradient(135deg,${C.greenDark} 0%,${C.green} 100%), borderRadius:20, padding:22, marginBottom:14, boxShadow:"0 2px 12px rgba(22,163,74,0.10)"Lg, color:C.white },
+  hero:  { background:"linear-gradient(135deg,"+C.greenDark+" 0%,"+C.green+" 100%)", borderRadius:20, padding:22, marginBottom:14, boxShadow:"0 4px 24px rgba(22,163,74,0.14)", color:C.white },
   lbl:   { color:C.textSub, fontSize:12, marginBottom:5, fontWeight:600, letterSpacing:0.3 },
   bigN:  { fontSize:34, fontWeight:900, color:C.white, lineHeight:1.1 },
   g2:    { display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 },
@@ -137,7 +137,7 @@ const css = {
 function Toast({msg,type,onDone}) {
   useEffect(()=>{const t=setTimeout(onDone,3200);return()=>clearTimeout(t);},[]);
   const bg = type==="ok"?C.green:type==="wa"?"#25d366":type==="err"?C.red:C.amber;
-  return <div style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",background:bg,color:C.white,padding:"11px 22px",borderRadius:12,zIndex:9999,fontSize:13,fontWeight:700,boxShadow:"0 2px 12px rgba(22,163,74,0.10)"Lg,maxWidth:320,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
+  return <div style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",background:bg,color:C.white,padding:"11px 22px",borderRadius:12,zIndex:9999,fontSize:13,fontWeight:700,boxShadow:"0 4px 24px rgba(22,163,74,0.14)",maxWidth:320,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
 
 // ── ROOT APP ─────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
       </div>
 
       {/* AI INSIGHT PANEL */}
-      <div style={{...css.card,border:"1.5px solid "+C.greenMid,background:linear-gradient(135deg,#f0fdf4,#ffffff)}}>
+      <div style={{...css.card,border:"1.5px solid "+C.greenMid,background:"linear-gradient(135deg,#f0fdf4,#ffffff)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{background:C.green,borderRadius:10,padding:7,display:"flex"}}><Ic n="spark" sz={14} cl="#fff"/></div>
@@ -457,7 +457,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             <Ic n="plus" sz={16}/> Tambah Produk
           </button>
 
-          <div style={{...css.card,background:linear-gradient(135deg,${C.greenPale},#f0fdf4),border:"1.5px solid "+C.green}}>
+          <div style={{...css.card,background:"linear-gradient(135deg,"+C.greenPale+",#f0fdf4)",border:"1.5px solid "+C.green}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontWeight:700,color:C.textMid}}>Total Order</span>
               <span style={{fontSize:24,fontWeight:900,color:C.green}}>{fmt(getTotal())}</span>
