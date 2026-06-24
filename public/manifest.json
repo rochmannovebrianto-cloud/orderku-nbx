@@ -1,0 +1,13 @@
+{
+  "name": "OrderKu NBX",
+  "short_name": "OrderKu NBX",
+  "description": "Sales Order Management - Nabire",
+  "start_url": "/orderku-nbx/",
+  "display": "standalone",
+  "background_color": "#f0f7f0",
+  "theme_color": "#16a34a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/orderku-nbx/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
