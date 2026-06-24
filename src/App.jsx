@@ -38,8 +38,23 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5
 async function apiCall(action, payload={}) {
   if (APPS_SCRIPT_URL.includes("GANTI")) return { success: false, demo: true };
   try {
-    const r = await fetch(APPS_SCRIPT_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action,...payload})});
-    return await r.json();
+    if (action === "getData") {
+      // GET request untuk hindari CORS preflight
+      const url = APPS_SCRIPT_URL + "?action=getData";
+      const r = await fetch(url, {method:"GET", redirect:"follow"});
+      const text = await r.text();
+      return JSON.parse(text);
+    } else {
+      // POST untuk write operations
+      const r = await fetch(APPS_SCRIPT_URL, {
+        method:"POST",
+        redirect:"follow",
+        headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({action,...payload})
+      });
+      const text = await r.text();
+      return JSON.parse(text);
+    }
   } catch(e) { return {success:false,error:e.message}; }
 }
 
