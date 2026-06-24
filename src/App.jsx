@@ -106,27 +106,27 @@ const D_TX = [
 // ── STYLES ──────────────────────────────────────────────────────
 const css = {
   app:   { background:C.bg, minHeight:"100vh", color:C.text, fontFamily:"'Inter',system-ui,sans-serif", maxWidth:480, margin:"0 auto", paddingBottom:88 },
-  hdr:   { background:C.white, padding:"14px 18px 12px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:C.shadow },
+  hdr:   { background:C.white, padding:"14px 18px 12px", borderBottom:1px solid ${C.border}, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:C.shadow },
   logo:  { color:C.greenDark, fontWeight:900, fontSize:21, letterSpacing:2.5 },
-  nav:   { position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C.white, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:200, boxShadow:"0 -2px 16px rgba(0,0,0,0.07)" },
-  navB:  (a) => ({ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"10px 4px 8px", cursor:"pointer", color:a?C.green:C.textMuted, fontSize:10, fontWeight:a?700:500, gap:3, background:"transparent", border:"none", transition:"color 0.2s", borderTop: a?`2px solid ${C.green}`:"2px solid transparent" }),
-  card:  { background:C.bgCard, borderRadius:16, padding:16, border:`1px solid ${C.border}`, marginBottom:12, boxShadow:C.shadow },
-  hero:  { background:`linear-gradient(135deg,${C.greenDark} 0%,${C.green} 100%)`, borderRadius:20, padding:22, marginBottom:14, boxShadow:C.shadowLg, color:C.white },
+  nav:   { position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C.white, borderTop:1px solid ${C.border}, display:"flex", zIndex:200, boxShadow:"0 -2px 16px rgba(0,0,0,0.07)" },
+  navB:  (a) => ({ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"10px 4px 8px", cursor:"pointer", color:a?C.green:C.textMuted, fontSize:10, fontWeight:a?700:500, gap:3, background:"transparent", border:"none", transition:"color 0.2s", borderTop: a?2px solid ${C.green}:"2px solid transparent" }),
+  card:  { background:C.bgCard, borderRadius:16, padding:16, border:1px solid ${C.border}, marginBottom:12, boxShadow:C.shadow },
+  hero:  { background:linear-gradient(135deg,${C.greenDark} 0%,${C.green} 100%), borderRadius:20, padding:22, marginBottom:14, boxShadow:C.shadowLg, color:C.white },
   lbl:   { color:C.textSub, fontSize:12, marginBottom:5, fontWeight:600, letterSpacing:0.3 },
   bigN:  { fontSize:34, fontWeight:900, color:C.white, lineHeight:1.1 },
   g2:    { display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 },
-  inp:   { background:C.bgSub, border:`1.5px solid ${C.border}`, borderRadius:10, color:C.text, padding:"11px 13px", fontSize:14, width:"100%", boxSizing:"border-box", outline:"none", fontFamily:"inherit" },
-  sel:   { background:C.bgSub, border:`1.5px solid ${C.border}`, borderRadius:10, color:C.text, padding:"11px 13px", fontSize:14, width:"100%", boxSizing:"border-box", outline:"none", fontFamily:"inherit" },
+  inp:   { background:C.bgSub, border:1.5px solid ${C.border}, borderRadius:10, color:C.text, padding:"11px 13px", fontSize:14, width:"100%", boxSizing:"border-box", outline:"none", fontFamily:"inherit" },
+  sel:   { background:C.bgSub, border:1.5px solid ${C.border}, borderRadius:10, color:C.text, padding:"11px 13px", fontSize:14, width:"100%", boxSizing:"border-box", outline:"none", fontFamily:"inherit" },
   btn:   (v="p") => ({
     background: v==="p"?C.green : v==="wa"?"#25d366" : v==="g"?C.bgSub : v==="r"?C.red : C.border,
     color: v==="p"||v==="wa"||v==="r" ? C.white : C.textMid,
     border:"none", borderRadius:12, padding:"13px 20px", fontWeight:700, fontSize:14,
-    cursor:"pointer", width:"100%", marginTop:6, display:"flex", alignItems:"center", justifyContent:"center", gap:7, boxShadow: v==="p"?`0 2px 10px rgba(22,163,74,0.3)`:v==="wa"?`0 2px 10px rgba(37,211,102,0.3)`:"none",
+    cursor:"pointer", width:"100%", marginTop:6, display:"flex", alignItems:"center", justifyContent:"center", gap:7, boxShadow: v==="p"?0 2px 10px rgba(22,163,74,0.3):v==="wa"?0 2px 10px rgba(37,211,102,0.3):"none",
   }),
   btnS:  (v="p") => ({
     background: v==="p"?C.green : v==="g"?"transparent" : v==="r"?C.red : C.bgSub,
     color: v==="p"?C.white : v==="g"?C.green : v==="r"?C.white : C.textMid,
-    border: v==="g"?`1.5px solid ${C.green}`:`1.5px solid ${v==="p"?C.green:v==="r"?C.red:C.border}`,
+    border: v==="g"?1.5px solid ${C.green}:1.5px solid ${v==="p"?C.green:v==="r"?C.red:C.border},
     borderRadius:9, padding:"7px 14px", fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:5,
   }),
   sec:   { fontSize:11, fontWeight:800, color:C.textSub, marginBottom:10, letterSpacing:1.5, textTransform:"uppercase" },
@@ -175,8 +175,8 @@ export default function OrderKuNBX() {
     transaksi.forEach(tx=>tx.items.forEach(i=>{
       produkTerjual[i.produk]=(produkTerjual[i.produk]||0)+i.qty;
     }));
-    const topProduk = Object.entries(produkTerjual).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>`${n}(${q}sak)`).join(", ");
-    const stokRendah = produk.filter(p=>p.stok<25).map(p=>`${p.nama}(${p.stok}sak)`).join(", ");
+    const topProduk = Object.entries(produkTerjual).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>${n}(${q}sak)).join(", ");
+    const stokRendah = produk.filter(p=>p.stok<25).map(p=>${p.nama}(${p.stok}sak)).join(", ");
     const outletAktif = outlets.filter(o=>o.aktif).length;
 
     try {
@@ -186,13 +186,13 @@ export default function OrderKuNBX() {
         body:JSON.stringify({
           model:"claude-sonnet-4-6",
           max_tokens:1000,
-          system:`Kamu adalah konsultan sales & marketing berpengalaman untuk distributor tepung terigu di wilayah Indonesia Timur. Berikan analisis singkat dan actionable dalam Bahasa Indonesia non-formal. Fokus pada: 1) situasi penjualan saat ini, 2) rekomendasi promo spesifik, 3) ide event atau program yang bisa meningkatkan omset, 4) produk mana yang perlu didorong. Jawab dengan format JSON: {"situasi":"...","promo":["...","..."],"event":["...","..."],"push_produk":"...","target_minggu":"..."} — JSON saja, tanpa markdown atau komentar.`,
-          messages:[{role:"user",content:`Data penjualan SPR Nabire: Total bulan ini Rp${totalBulan.toLocaleString("id-ID")}, hari ini Rp${totalHari.toLocaleString("id-ID")}, total transaksi ${transaksi.length}, outlet aktif ${outletAktif}, top produk: ${topProduk||"belum ada data"}, stok hampir habis: ${stokRendah||"tidak ada"}, produk tersedia: ${produk.map(p=>p.nama).join(", ")}. Berikan insight dan strategi konkret untuk meningkatkan omset minggu ini.`}],
+          system:Kamu adalah konsultan sales & marketing berpengalaman untuk distributor tepung terigu di wilayah Indonesia Timur. Berikan analisis singkat dan actionable dalam Bahasa Indonesia non-formal. Fokus pada: 1) situasi penjualan saat ini, 2) rekomendasi promo spesifik, 3) ide event atau program yang bisa meningkatkan omset, 4) produk mana yang perlu didorong. Jawab dengan format JSON: {"situasi":"...","promo":["...","..."],"event":["...","..."],"push_produk":"...","target_minggu":"..."} — JSON saja, tanpa markdown atau komentar.,
+          messages:[{role:"user",content:Data penjualan SPR Nabire: Total bulan ini Rp${totalBulan.toLocaleString("id-ID")}, hari ini Rp${totalHari.toLocaleString("id-ID")}, total transaksi ${transaksi.length}, outlet aktif ${outletAktif}, top produk: ${topProduk||"belum ada data"}, stok hampir habis: ${stokRendah||"tidak ada"}, produk tersedia: ${produk.map(p=>p.nama).join(", ")}. Berikan insight dan strategi konkret untuk meningkatkan omset minggu ini.}],
         }),
       });
       const data = await res.json();
       const txt = data.content?.find(b=>b.type==="text")?.text||"{}";
-      const clean = txt.replace(/```json|```/g,"").trim();
+      const clean = txt.replace(/json|/g,"").trim();
       setAiInsight(JSON.parse(clean));
     } catch(e){ setAiInsight({situasi:"Gagal memuat insight AI. Coba lagi.",promo:[],event:[],push_produk:"",target_minggu:""}); }
     setLoadingAI(false);
@@ -277,7 +277,7 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
       </div>
 
       {/* AI INSIGHT PANEL */}
-      <div style={{...css.card,border:`1.5px solid ${C.greenMid}`,background:`linear-gradient(135deg,#f0fdf4,#ffffff)`}}>
+      <div style={{...css.card,border:1.5px solid ${C.greenMid},background:linear-gradient(135deg,#f0fdf4,#ffffff)}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{background:C.green,borderRadius:10,padding:7,display:"flex"}}><Ic n="spark" sz={14} cl="#fff"/></div>
@@ -382,13 +382,13 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
 
   const buildWAMsg=(tx)=>{
     const lines=tx.items.map(i=>`  • ${i.produk} x${i.qty} ${i.satuan} = ${fmt(i.subtotal)}`).join("\n");
-    return `*ORDER BARU - ORDERKU NBX*\n\n🏪 *Outlet:* ${tx.outlet}\n📅 *Tanggal:* ${tx.tanggal}\n📋 *ID:* ${tx.id}\n\n*Detail Order:*\n${lines}\n\n💰 *TOTAL: ${fmt(tx.total)}*\n\n_Dikirim via OrderKu NBX_`;
+    return *ORDER BARU - ORDERKU NBX*\n\n🏪 *Outlet:* ${tx.outlet}\n📅 *Tanggal:* ${tx.tanggal}\n📋 *ID:* ${tx.id}\n\n*Detail Order:*\n${lines}\n\n💰 *TOTAL: ${fmt(tx.total)}*\n\n_Dikirim via OrderKu NBX_;
   };
 
   const kirimWA=(tx,isAdmin=true)=>{
     const nomor = isAdmin ? ADMIN_WA : tx.outletKontak?.replace(/[^0-9]/g,"")?.replace(/^0/,"62");
     const msg = encodeURIComponent(buildWAMsg(tx));
-    window.open(`https://wa.me/${nomor}?text=${msg}`,"_blank");
+    window.open(https://wa.me/${nomor}?text=${msg},"_blank");
     setTransaksi(prev=>prev.map(t=>t.id===tx.id?{...t,kirimWA:true,kirimWAAt:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}:t));
     showToast("WhatsApp terbuka! Tandai ✓ setelah kirim","wa");
   };
@@ -453,11 +453,11 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             );
           })}
 
-          <button onClick={addItem} style={{background:C.bgSub,border:`1.5px dashed ${C.green}`,color:C.green,borderRadius:12,padding:"11px 16px",fontWeight:700,fontSize:13,cursor:"pointer",width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
+          <button onClick={addItem} style={{background:C.bgSub,border:1.5px dashed ${C.green},color:C.green,borderRadius:12,padding:"11px 16px",fontWeight:700,fontSize:13,cursor:"pointer",width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
             <Ic n="plus" sz={16}/> Tambah Produk
           </button>
 
-          <div style={{...css.card,background:`linear-gradient(135deg,${C.greenPale},#f0fdf4)`,border:`1.5px solid ${C.green}`}}>
+          <div style={{...css.card,background:linear-gradient(135deg,${C.greenPale},#f0fdf4),border:1.5px solid ${C.green}}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontWeight:700,color:C.textMid}}>Total Order</span>
               <span style={{fontSize:24,fontWeight:900,color:C.green}}>{fmt(getTotal())}</span>
@@ -471,7 +471,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
       ):(
         <div>
           {[...transaksi].reverse().map(tx=>(
-            <div key={tx.id} style={{...css.card,border:tx.kirimWA?`1.5px solid ${C.green}`:undefined}}>
+            <div key={tx.id} style={{...css.card,border:tx.kirimWA?1.5px solid ${C.green}:undefined}}>
               {/* Header */}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                 <div>
@@ -489,7 +489,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
 
               {/* Items */}
               {tx.items.map((it,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"4px 0",borderTop:`1px solid ${C.bgSub}`}}>
+                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"4px 0",borderTop:1px solid ${C.bgSub}}}>
                   <span>{it.produk} ×{it.qty} {it.satuan}</span><span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
                 </div>
               ))}
@@ -547,7 +547,7 @@ function Outlet({outlets,setOutlets,showToast}){
       </div>
 
       {showForm&&(
-        <div style={{...css.card,border:`1.5px solid ${C.green}`,marginBottom:16}}>
+        <div style={{...css.card,border:1.5px solid ${C.green},marginBottom:16}}>
           <div style={{fontWeight:800,color:C.greenDark,marginBottom:12}}>Outlet Baru</div>
           {[{l:"Nama Outlet *",k:"nama",p:"cth: Toko Maju Jaya"},{l:"Alamat",k:"alamat",p:"Jl. ..."},{l:"No. HP / WA",k:"kontak",p:"08xxxxxxxxxx"}].map(({l,k,p})=>(
             <div key={k} style={{marginBottom:10}}><div style={css.lbl}>{l}</div><input style={css.inp} placeholder={p} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/></div>
@@ -583,6 +583,7 @@ function Outlet({outlets,setOutlets,showToast}){
 // ════════════════════════════════════════════════════════════════
 function Barang({produk,setProduk,showToast}){
   const [editId,setEditId]=useState(null);
+  const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({nama:"",satuan:"Sak",harga:"",stok:"",brand:"Kompas",emoji:"🌾",foto:""});
   const [filter,setFilter]=useState("Semua");
   const fileRef = useRef();
@@ -596,7 +597,7 @@ function Barang({produk,setProduk,showToast}){
     window.scrollTo({top:0,behavior:"smooth"});
   };
 
-  const resetForm=()=>{ setEditId(null); setForm({nama:"",satuan:"Sak",harga:"",stok:"",brand:"Kompas",emoji:"🌾",foto:""}); };
+  const resetForm=()=>{ setEditId(null); setShowForm(false); setForm({nama:"",satuan:"Sak",harga:"",stok:"",brand:"Kompas",emoji:"🌾",foto:""}); };
 
   const handlePhoto=(e)=>{
     const file=e.target.files[0];
@@ -623,25 +624,24 @@ function Barang({produk,setProduk,showToast}){
   const hapus=(id)=>{ if(confirm("Hapus produk ini?"))setProduk(prev=>prev.filter(p=>p.id!==id)); };
 
   const filtered=filter==="Semua"?produk:produk.filter(p=>p.brand===filter);
-  const showForm=editId!==null||form.nama!==""||form.harga!=="";
 
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <div style={css.sec}>Daftar Barang ({filtered.length})</div>
-        {!editId&&<button onClick={()=>setForm({...form,nama:form.nama||""})} style={css.btnS()}><Ic n="plus" sz={12}/>Tambah</button>}
+        {!editId&&<button onClick={()=>{setShowForm(true);setEditId(null);}} style={css.btnS()}><Ic n="plus" sz={12}/>Tambah</button>}
       </div>
 
       {/* Filter brand */}
       <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
         {brands.map(b=>(
-          <button key={b} onClick={()=>setFilter(b)} style={{background:filter===b?C.green:C.bgCard,color:filter===b?C.white:C.textMid,border:`1.5px solid ${filter===b?C.green:C.border}`,borderRadius:20,padding:"5px 14px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",boxShadow:filter===b?`0 2px 8px rgba(22,163,74,0.25)`:"none"}}>{b}</button>
+          <button key={b} onClick={()=>setFilter(b)} style={{background:filter===b?C.green:C.bgCard,color:filter===b?C.white:C.textMid,border:1.5px solid ${filter===b?C.green:C.border},borderRadius:20,padding:"5px 14px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",boxShadow:filter===b?0 2px 8px rgba(22,163,74,0.25):"none"}}>{b}</button>
         ))}
       </div>
 
       {/* FORM ADD/EDIT */}
       {(editId||showForm)&&(
-        <div style={{...css.card,border:`1.5px solid ${editId?C.teal:C.green}`,marginBottom:16}}>
+        <div style={{...css.card,border:1.5px solid ${editId?C.teal:C.green},marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontWeight:800,color:editId?C.teal:C.greenDark,fontSize:14}}>{editId?"✏️ Edit Produk":"➕ Produk Baru"}</div>
             <button onClick={resetForm} style={{background:"none",border:"none",cursor:"pointer",color:C.textSub}}><Ic n="close" sz={18}/></button>
@@ -651,7 +651,7 @@ function Barang({produk,setProduk,showToast}){
           <div style={{marginBottom:12}}>
             <div style={css.lbl}>Foto Produk</div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <div onClick={()=>fileRef.current.click()} style={{width:72,height:72,borderRadius:12,border:`2px dashed ${C.green}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:C.bgSub,flexShrink:0}}>
+              <div onClick={()=>fileRef.current.click()} style={{width:72,height:72,borderRadius:12,border:2px dashed ${C.green},display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:C.bgSub,flexShrink:0}}>
                 {form.foto?<img src={form.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="foto"/>:<><Ic n="img" sz={28}/></>}
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
@@ -659,7 +659,7 @@ function Barang({produk,setProduk,showToast}){
                 <div style={{fontSize:12,color:C.textSub,marginBottom:6}}>atau pilih emoji:</div>
                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                   {emojis.map(e=>(
-                    <button key={e} onClick={()=>setForm(f=>({...f,emoji:e}))} style={{fontSize:18,background:form.emoji===e?C.greenPale:C.bgSub,border:`1.5px solid ${form.emoji===e?C.green:C.border}`,borderRadius:7,padding:"4px 8px",cursor:"pointer"}}>{e}</button>
+                    <button key={e} onClick={()=>setForm(f=>({...f,emoji:e}))} style={{fontSize:18,background:form.emoji===e?C.greenPale:C.bgSub,border:1.5px solid ${form.emoji===e?C.green:C.border},borderRadius:7,padding:"4px 8px",cursor:"pointer"}}>{e}</button>
                   ))}
                 </div>
               </div>
@@ -686,7 +686,7 @@ function Barang({produk,setProduk,showToast}){
         <div key={p.id} style={{...css.card,padding:12}}>
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
             {/* Product image/emoji */}
-            <div style={{width:58,height:58,borderRadius:12,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,border:`1px solid ${C.border}`}}>
+            <div style={{width:58,height:58,borderRadius:12,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,border:1px solid ${C.border}}}>
               {p.foto?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama}/>:<span style={{fontSize:32}}>{p.emoji||"📦"}</span>}
             </div>
             <div style={{flex:1,minWidth:0}}>
@@ -701,7 +701,7 @@ function Barang({produk,setProduk,showToast}){
             </div>
           </div>
           {/* Edit / Hapus */}
-          <div style={{display:"flex",gap:7,marginTop:10,paddingTop:8,borderTop:`1px solid ${C.bgSub}`}}>
+          <div style={{display:"flex",gap:7,marginTop:10,paddingTop:8,borderTop:1px solid ${C.bgSub}}}>
             <button onClick={()=>openEdit(p)} style={{...css.btnS("g"),flex:1,justifyContent:"center",fontSize:12}}>
               <Ic n="edit" sz={13}/>Edit
             </button>
@@ -770,7 +770,7 @@ function Laporan({transaksi}){
               </div>
               {/* Progress bar */}
               <div style={{height:4,background:C.bgSub,borderRadius:4}}>
-                <div style={{height:"100%",width:`${(r.total/maxTotal)*100}%`,background:i===0?C.green:i===1?C.teal:"#94a3b8",borderRadius:4,transition:"width 0.5s"}}/>
+                <div style={{height:"100%",width:${(r.total/maxTotal)*100}%,background:i===0?C.green:i===1?C.teal:"#94a3b8",borderRadius:4,transition:"width 0.5s"}}/>
               </div>
             </div>
           ))}
@@ -789,7 +789,7 @@ function Laporan({transaksi}){
                 </div>
               </div>
               {tx.items.map((it,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"3px 0",borderTop:`1px solid ${C.bgSub}`}}>
+                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"3px 0",borderTop:1px solid ${C.bgSub}}}>
                   <span>{it.produk} ×{it.qty}</span><span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
                 </div>
               ))}
