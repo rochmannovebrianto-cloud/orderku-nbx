@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypspQj6p1pYQcholAe6Wdc1bkkDZbcGFceAYLaFw8WDlgsXgN19HDlLscqTUjtGa03vA/exec";
 const ADMIN_WA = "6281234539872";
@@ -467,7 +467,6 @@ function Barang({produk,setProduk,showToast}){
   const [editId,setEditId]=useState(null);
   const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:""});
-  const fileRef=useRef();
   const emojis=["🌾","🏔️","🚪","📦","⚡","🏗️","🧱","🔶"];
 
   const openEdit=(p)=>{
@@ -478,12 +477,6 @@ function Barang({produk,setProduk,showToast}){
 
   const resetForm=()=>{setEditId(null);setShowForm(false);setForm({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:""});};
 
-  const handlePhoto=(e)=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>setForm(f=>({...f,foto:ev.target.result}));
-    reader.readAsDataURL(file);
-  };
 
   const save=async()=>{
     if(!form.nama||!form.harga)return showToast("Nama dan harga wajib!","err");
@@ -514,19 +507,15 @@ function Barang({produk,setProduk,showToast}){
             <button onClick={resetForm} style={{background:"none",border:"none",cursor:"pointer",color:C.textSub}}><Ic n="close" sz={18}/></button>
           </div>
           <div style={{marginBottom:12}}>
-            <div style={css.lbl}>Foto Produk</div>
-            <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <div onClick={()=>fileRef.current.click()} style={{width:72,height:72,borderRadius:12,border:"2px dashed "+C.green,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:C.bgSub,flexShrink:0}}>
-                {form.foto?<img src={form.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="foto"/>:<Ic n="img" sz={28}/>}
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
-              <div>
-                <div style={{fontSize:12,color:C.textSub,marginBottom:6}}>atau pilih emoji:</div>
-                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                  {emojis.map(e=>(
-                    <button key={e} onClick={()=>setForm(f=>({...f,emoji:e}))} style={{fontSize:18,background:form.emoji===e?C.greenPale:C.bgSub,border:"1.5px solid "+(form.emoji===e?C.green:C.border),borderRadius:7,padding:"4px 8px",cursor:"pointer"}}>{e}</button>
-                  ))}
-                </div>
+            <div style={css.lbl}>URL Foto Produk</div>
+            <input style={css.inp} placeholder="https://drive.google.com/uc?id=... atau link ImgBB" value={form.foto} onChange={e=>setForm({...form,foto:e.target.value})}/>
+            {form.foto&&<img src={form.foto} style={{width:"100%",height:120,objectFit:"cover",borderRadius:10,marginTop:8}} alt="preview" onError={e=>e.target.style.display="none"}/>}
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:12,color:C.textSub,marginBottom:6}}>atau pilih emoji (jika tidak ada foto):</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {emojis.map(e=>(
+                  <button key={e} onClick={()=>setForm(f=>({...f,emoji:e}))} style={{fontSize:18,background:form.emoji===e?C.greenPale:C.bgSub,border:"1.5px solid "+(form.emoji===e?C.green:C.border),borderRadius:7,padding:"4px 8px",cursor:"pointer"}}>{e}</button>
+                ))}
               </div>
             </div>
           </div>
