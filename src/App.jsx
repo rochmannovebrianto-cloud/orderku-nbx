@@ -368,22 +368,22 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
 
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div style={{display:"flex",alignItems:"center",gap:6}}>
-          {["outlet","katalog","keranjang"].map((s,i)=>(
-            <div key={s} style={{display:"flex",alignItems:"center",gap:4}}>
-              <div style={{width:26,height:26,borderRadius:"50%",background:(step===s||(i===0&&step!=="outlet")||(i===1&&step==="keranjang"))?C.green:C.bgSub,color:(step===s||(i===0&&step!=="outlet")||(i===1&&step==="keranjang"))?C.white:C.textMuted,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800}}>{i+1}</div>
-              <span style={{fontSize:10,color:step===s?C.green:C.textMuted,fontWeight:step===s?700:400}}>{s==="outlet"?"Outlet":s==="katalog"?"Katalog":"Keranjang"}</span>
-              {i<2&&<div style={{width:16,height:2,background:C.border,marginLeft:4}}/>}
-            </div>
-          ))}
-        </div>
-        <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
+      <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:14}}>
+        {["outlet","katalog","keranjang"].map((s,i)=>(
+          <div key={s} style={{display:"flex",alignItems:"center",gap:4}}>
+            <div style={{width:26,height:26,borderRadius:"50%",background:(step===s||(i===0&&step!=="outlet")||(i===1&&step==="keranjang"))?C.green:C.bgSub,color:(step===s||(i===0&&step!=="outlet")||(i===1&&step==="keranjang"))?C.white:C.textMuted,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800}}>{i+1}</div>
+            <span style={{fontSize:10,color:step===s?C.green:C.textMuted,fontWeight:step===s?700:400}}>{s==="outlet"?"Outlet":s==="katalog"?"Katalog":"Keranjang"}</span>
+            {i<2&&<div style={{width:14,height:2,background:C.border,marginLeft:4}}/>}
+          </div>
+        ))}
       </div>
 
       {step==="outlet"&&(
         <div>
-          <div style={css.sec}>Pilih Outlet</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={css.sec}>Pilih Outlet</div>
+            <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
+          </div>
           {outlets.filter(o=>o.aktif).map(o=>(
             <div key={o.id} onClick={()=>{setOutletId(o.id);setStep("katalog");}} style={{...css.card,cursor:"pointer",border:"1px solid "+C.border}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -408,7 +408,10 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
               <div style={css.sec}>Katalog Produk</div>
               <div style={{fontSize:12,color:C.green,fontWeight:700,marginTop:-6}}>🏪 {outlet?.nama}</div>
             </div>
-            <button onClick={()=>setStep("outlet")} style={css.btnS("g")}><Ic n="close" sz={12}/>Ganti</button>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
+              <button onClick={()=>setStep("outlet")} style={css.btnS("g")}><Ic n="close" sz={12}/>Ganti</button>
+            </div>
           </div>
           {totalItem>0&&(
             <button onClick={()=>setStep("keranjang")} style={{...css.btn(),marginBottom:14,marginTop:0}}>
