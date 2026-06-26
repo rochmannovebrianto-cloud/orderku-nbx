@@ -608,7 +608,12 @@ function Barang({produk,setProduk,showToast}){
     resetForm();
   };
 
-  const hapus=(id)=>{if(window.confirm("Hapus produk ini?"))setProduk(prev=>prev.filter(p=>p.id!==id));};
+  const hapus=async(id)=>{
+    if(!window.confirm("Hapus produk ini?"))return;
+    setProduk(prev=>prev.filter(p=>p.id!==id));
+    if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("deleteProduk",{id});
+    showToast("Produk dihapus!");
+  };
 
   return(
     <div>
@@ -653,7 +658,10 @@ function Barang({produk,setProduk,showToast}){
         <div key={p.id} style={{...css.card,padding:12}}>
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
             <div style={{width:58,height:58,borderRadius:12,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,border:"1px solid "+C.border}}>
-              {p.foto?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama}/>:<span style={{fontSize:32}}>{p.emoji||"📦"}</span>}
+              {p.foto
+  ?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}/>
+  :null}
+<span style={{fontSize:32,display:p.foto?"none":"flex"}}>{p.emoji||"📦"}</span>
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{p.nama}</div>
