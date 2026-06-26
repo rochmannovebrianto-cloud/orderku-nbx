@@ -12,7 +12,28 @@ const C = {
 };
 
 const fmt = (n) => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",minimumFractionDigits:0}).format(n||0);
-const todayISO = () => new Date().toISOString().split("T")[0];
+const todayISO = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,"0");
+  const d = String(now.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+d;
+};
+// Normalisasi tanggal dari berbagai format ke YYYY-MM-DD
+const normTgl = (tgl) => {
+  if(!tgl) return "";
+  // Sudah format ISO
+  if(/^\d{4}-\d{2}-\d{2}/.test(String(tgl))) return String(tgl).slice(0,10);
+  // Format dari Google Sheets (Date object atau string panjang)
+  const d = new Date(tgl);
+  if(!isNaN(d.getTime())) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    return y+"-"+m+"-"+dd;
+  }
+  return String(tgl).slice(0,10);
+};
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
 async function apiCall(action, payload={}) {
@@ -107,7 +128,7 @@ export default function OrderKuNBX() {
   const fetchAI=useCallback(async()=>{
     setLoadingAI(true);
     const totalBulan=transaksi.reduce((s,t)=>s+t.total,0);
-    const totalHari=transaksi.filter(t=>t.tanggal===todayISO()).reduce((s,t)=>s+t.total,0);
+    const totalHari=transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).reduce((s,t)=>s+t.total,0);
     const pMap={};
     transaksi.forEach(tx=>tx.items.forEach(i=>{pMap[i.produk]=(pMap[i.produk]||0)+i.qty;}));
     const topProduk=Object.entries(pMap).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>n+"("+q+"sak)").join(", ");
@@ -135,9 +156,13 @@ export default function OrderKuNBX() {
   useEffect(()=>{fetchAI();},[]);
 
   const totalBulan=transaksi.reduce((s,t)=>s+t.total,0);
-  const totalHari=transaksi.filter(t=>t.tanggal===todayISO()).reduce((s,t)=>s+t.total,0);
-  const txHari=transaksi.filter(t=>t.tanggal===todayISO()).length;
-  const outAktif=outlets.filter(o=>o.aktif).length;
+  const totalHari=transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).reduce((s,t)=>s+t.total,0);
+  const txHari=transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).length;
+  // Outlet aktif = % outlet yang sudah transaksi bulan ini
+  const bulanIni=todayISO().slice(0,7);
+  const outletTxBulanIni=new Set(transaksi.filter(t=>normTgl(t.tanggal).slice(0,7)===bulanIni).map(t=>t.outlet));
+  const totalOutlet=outlets.filter(o=>o.aktif).length;
+  const outAktifPct=totalOutlet>0?Math.round(outletTxBulanIni.size/totalOutlet*100):0;
   const totalQty=transaksi.flatMap(t=>t.items).reduce((s,i)=>s+i.qty,0);
 
   return (
@@ -184,9 +209,9 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
             <div style={{fontSize:11,opacity:0.7}}>{txHari} transaksi</div>
           </div>
           <div style={{background:"rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 16px",flex:1}}>
-            <div style={{fontSize:11,opacity:0.75}}>Outlet Aktif</div>
-            <div style={{fontWeight:800,fontSize:18}}>{outAktif}</div>
-            <div style={{fontSize:11,opacity:0.7}}>{totalQty} item terjual</div>
+            <div style={{fontSize:11,opacity:0.75}}>Outlet Bertransaksi</div>
+            <div style={{fontWeight:800,fontSize:18}}>{outAktifPct}%</div>
+            <div style={{fontSize:11,opacity:0.7}}>{outletTxBulanIni.size}/{totalOutlet} outlet</div>
           </div>
         </div>
       </div>
@@ -249,7 +274,7 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
             <div key={tx.id} style={{...css.card,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontWeight:700,fontSize:13}}>{tx.outlet}</div>
-                <div style={{fontSize:11,color:C.textSub,marginTop:2}}>{tx.tanggal} · {tx.items.length} item</div>
+                <div style={{fontSize:11,color:C.textSub,marginTop:2}}>{normTgl(tx.tanggal)} · {tx.items.length} item</div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{color:C.green,fontWeight:800,fontSize:14}}>{fmt(tx.total)}</div>
@@ -264,9 +289,9 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
 }
 
 function buildPesanWA(tx, produkList) {
-  const tglObj = new Date(tx.tanggal);
+  const tglNorm = normTgl(tx.tanggal);
+  const tglObj = new Date(tglNorm+"T00:00:00");
   const tglFmt = tglObj.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
-  const jamFmt = new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
   const kontak = (tx.outletKontak||"-").replace(/^62/,"0").replace(/([0-9]{4})([0-9]{4})([0-9]+)/,"$1-$2-$3");
   const lines = tx.items.map(i=>{
     const p = produkList.find(p=>p.nama===i.produk);
@@ -279,7 +304,7 @@ function buildPesanWA(tx, produkList) {
   const totalLine=Object.entries(rekapSatuan).map(([sat,qty])=>qty+" "+sat).join(", ");
   return [
     "*📝 ORDER BARU*","",
-    "📅 "+tglFmt+" "+jamFmt,
+    "📅 "+tglFmt,
     "🏪 "+tx.outlet,
     "📞 "+kontak,
     "#"+tx.id,"",
@@ -294,13 +319,23 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
   const [step,setStep]=useState("outlet");
   const [outletId,setOutletId]=useState("");
   const [keranjang,setKeranjang]=useState({});
+  const [diskon,setDiskon]=useState({}); // {produkId: {minQty, hargaDiskon}}
   const [saving,setSaving]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
 
   const outlet=outlets.find(o=>o.id===outletId);
   const totalItem=Object.values(keranjang).reduce((s,q)=>s+q,0);
+  const getHarga=(id,qty)=>{
+    const p=produk.find(p=>p.id===id);if(!p)return 0;
+    // Cek apakah ada paket diskon
+    if(p.pakets&&p.pakets.length>0){
+      const cocok=p.pakets.filter(pk=>qty>=pk.minQty).sort((a,b)=>b.minQty-a.minQty)[0];
+      if(cocok)return cocok.harga;
+    }
+    return p.harga;
+  };
   const totalHarga=Object.entries(keranjang).reduce((s,[id,qty])=>{
-    const p=produk.find(p=>p.id===id);return s+(p?p.harga*qty:0);
+    return s+getHarga(id,qty)*qty;
   },0);
 
   const add=(id)=>setKeranjang(prev=>({...prev,[id]:(prev[id]||0)+1}));
@@ -312,8 +347,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
     const pesan=buildPesanWA(tx,produk);
     const msg=encodeURIComponent(pesan);
     window.open("https://wa.me/"+nomor+"?text="+msg,"_blank");
-    const jam=new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
-    setTransaksi(prev=>prev.map(t=>t.id===tx.id?{...t,kirimWA:true,kirimWAAt:jam}:t));
+    setTransaksi(prev=>prev.map(t=>t.id===tx.id?{...t,kirimWA:true,kirimWAAt:normTgl(tx.tanggal)}:t));
     showToast("WhatsApp terbuka!","wa");
   };
 
@@ -321,7 +355,11 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
     const valid=Object.entries(keranjang).filter(([,q])=>q>0);
     if(!valid.length)return showToast("Keranjang kosong!","err");
     setSaving(true);
-    const txItems=valid.map(([id,qty])=>{const p=produk.find(p=>p.id===id);return{produk:p.nama,qty,satuan:p.satuan,harga:p.harga,subtotal:p.harga*qty};});
+    const txItems=valid.map(([id,qty])=>{
+      const p=produk.find(p=>p.id===id);
+      const h=getHarga(id,qty);
+      return{produk:p.nama,qty,satuan:p.satuan,harga:h,subtotal:h*qty,diskon:h<p.harga};
+    });
     const tx={id:"T"+uid(),tanggal:todayISO(),outlet:outlet.nama,outletKontak:outlet.kontak,items:txItems,total:txItems.reduce((s,i)=>s+i.subtotal,0),kirimWA:false};
     if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("addTransaksi",{transaksi:tx});
     setTransaksi(prev=>[...prev,tx]);
@@ -341,7 +379,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
             <div>
               <div style={{fontWeight:800,fontSize:14}}>{tx.outlet}</div>
-              <div style={{fontSize:11,color:C.textSub}}>{tx.tanggal} · #{tx.id}</div>
+              <div style={{fontSize:11,color:C.textSub}}>{normTgl(tx.tanggal)} · #{tx.id}</div>
             </div>
             <div style={{textAlign:"right"}}>
               <div style={{color:C.green,fontWeight:900}}>{fmt(tx.total)}</div>
@@ -433,7 +471,20 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
                   <div style={{padding:"8px 10px 10px"}}>
                     <div style={{fontWeight:700,fontSize:12,marginBottom:1,lineHeight:1.3}}>{p.nama}</div>
                     <div style={{fontSize:10,color:C.textSub}}>Stok: {p.stok} {p.satuan}</div>
-                    <div style={{color:C.green,fontWeight:800,fontSize:13,margin:"4px 0 8px"}}>{fmt(p.harga)}</div>
+                    <div style={{margin:"4px 0 8px"}}>
+                      {(()=>{
+                        const qty=keranjang[p.id]||0;
+                        const h=qty>0?getHarga(p.id,qty):p.harga;
+                        const diskon=qty>0&&h<p.harga;
+                        return(
+                          <div>
+                            <span style={{color:diskon?C.red:C.green,fontWeight:800,fontSize:13,textDecoration:diskon?"none":"none"}}>{fmt(h)}</span>
+                            {diskon&&<span style={{color:C.textMuted,fontSize:10,textDecoration:"line-through",marginLeft:4}}>{fmt(p.harga)}</span>}
+                            {p.pakets?.length>0&&<div style={{fontSize:9,color:C.amber,fontWeight:700}}>🏷️ Ada paket harga</div>}
+                          </div>
+                        );
+                      })()}
+                    </div>
                     {qty===0
                       ?<button onClick={()=>add(p.id)} style={{background:C.green,color:C.white,border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:12,cursor:"pointer",width:"100%"}}>+ Keranjang</button>
                       :<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:C.greenPale,borderRadius:8,padding:"4px 8px"}}>
@@ -555,7 +606,7 @@ function Outlet({outlets,setOutlets,showToast}){
 function Barang({produk,setProduk,showToast}){
   const [editId,setEditId]=useState(null);
   const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:""});
+  const [form,setForm]=useState({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:"",pakets:[]});
   const fileRef=useRef();
   const emojis=["🌾","🏔️","🚪","📦","⚡","🏗️","🧱","🔶"];
 
@@ -568,20 +619,20 @@ function Barang({produk,setProduk,showToast}){
 
   const openEdit=(p)=>{
     setEditId(p.id);setShowForm(true);
-    setForm({nama:p.nama,satuan:p.satuan,harga:String(p.harga),stok:String(p.stok),emoji:p.emoji||"🌾",foto:p.foto||""});
+    setForm({nama:p.nama,satuan:p.satuan,harga:String(p.harga),stok:String(p.stok),emoji:p.emoji||"🌾",foto:p.foto||"",pakets:p.pakets||[]});
     window.scrollTo({top:0,behavior:"smooth"});
   };
 
-  const resetForm=()=>{setEditId(null);setShowForm(false);setForm({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:""});};
+  const resetForm=()=>{setEditId(null);setShowForm(false);setForm({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:"",pakets:[]});};
 
   const save=async()=>{
     if(!form.nama||!form.harga)return showToast("Nama dan harga wajib!","err");
     if(editId){
-      setProduk(prev=>prev.map(p=>p.id===editId?{...p,...form,harga:Number(form.harga),stok:Number(form.stok)}:p));
-      if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("updateProduk",{produk:{id:editId,...form,harga:Number(form.harga),stok:Number(form.stok)}});
+      setProduk(prev=>prev.map(p=>p.id===editId?{...p,...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]}:p));
+      if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("updateProduk",{produk:{id:editId,...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]}});
       showToast("Produk diperbarui!");
     } else {
-      const p={id:"P"+uid(),...form,harga:Number(form.harga),stok:Number(form.stok)};
+      const p={id:"P"+uid(),...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]};
       if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("addProduk",{produk:p});
       setProduk(prev=>[...prev,p]);
       showToast("Produk ditambahkan!");
@@ -632,6 +683,29 @@ function Barang({produk,setProduk,showToast}){
           <select style={{...css.sel,marginBottom:12}} value={form.satuan} onChange={e=>setForm({...form,satuan:e.target.value})}>
             {["Sak","Kg","Karton","Pcs"].map(x=><option key={x}>{x}</option>)}
           </select>
+          {/* Paket Harga */}
+          <div style={{marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={css.lbl}>Paket Harga Khusus</div>
+              <button onClick={()=>{
+                const min=prompt("Minimum qty untuk paket (contoh: 100):");
+                const harga=prompt("Harga per sak untuk paket tersebut (contoh: 235000):");
+                if(min&&harga){
+                  const pk={minQty:Number(min),harga:Number(harga)};
+                  setForm(f=>({...f,pakets:[...(f.pakets||[]),pk]}));
+                }
+              }} style={{...css.btnS("g"),fontSize:11,padding:"4px 10px"}}>+ Tambah Paket</button>
+            </div>
+            {(form.pakets||[]).length===0
+              ?<div style={{fontSize:12,color:C.textMuted,fontStyle:"italic"}}>Belum ada paket. Contoh: beli 100 sak harga Rp 235.000</div>
+              :(form.pakets||[]).map((pk,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.amberPale,borderRadius:8,padding:"6px 10px",marginBottom:4}}>
+                  <span style={{fontSize:12,color:C.amber,fontWeight:700}}>🏷️ Min {pk.minQty} {form.satuan} → {fmt(pk.harga)}/sak</span>
+                  <button onClick={()=>setForm(f=>({...f,pakets:f.pakets.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:16}}>×</button>
+                </div>
+              ))
+            }
+          </div>
           <button onClick={save} style={css.btn()}><Ic n="check" sz={15}/>{editId?"Simpan Perubahan":"Tambah Produk"}</button>
         </div>
       )}
@@ -670,7 +744,7 @@ function Laporan({transaksi}){
   const [tgl,setTgl]=useState(todayISO());
 
   // Data harian
-  const txHari=transaksi.filter(t=>t.tanggal===tgl);
+  const txHari=transaksi.filter(t=>normTgl(t.tanggal)===tgl);
   const totalHari=txHari.reduce((s,t)=>s+t.total,0);
   const rekapHari={};
   txHari.forEach(tx=>tx.items.forEach(it=>{
@@ -683,7 +757,7 @@ function Laporan({transaksi}){
   // Data bulanan — 6 bulan terakhir
   const bulanMap={};
   transaksi.forEach(tx=>{
-    const b=tx.tanggal?.slice(0,7)||"";
+    const b=normTgl(tx.tanggal).slice(0,7)||"";
     if(b)bulanMap[b]=(bulanMap[b]||0)+tx.total;
   });
   const bulanList=Object.entries(bulanMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
