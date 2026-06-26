@@ -325,9 +325,8 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
     const tx={id:"T"+uid(),tanggal:todayISO(),outlet:outlet.nama,outletKontak:outlet.kontak,items:txItems,total:txItems.reduce((s,i)=>s+i.subtotal,0),kirimWA:false};
     if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("addTransaksi",{transaksi:tx});
     setTransaksi(prev=>[...prev,tx]);
-    setTimeout(()=>kirimWA(tx,true),500);
     setKeranjang({});setOutletId("");setStep("outlet");
-    showToast("Order tersimpan & WA Admin dibuka!");
+    showToast("Order tersimpan ke rekapan! ✅");
     setSaving(false);
   };
 
@@ -667,71 +666,170 @@ function Barang({produk,setProduk,showToast}){
 }
 
 function Laporan({transaksi}){
+  const [mode,setMode]=useState("harian"); // harian | bulanan
   const [tgl,setTgl]=useState(todayISO());
-  const txF=transaksi.filter(t=>t.tanggal===tgl);
-  const total=txF.reduce((s,t)=>s+t.total,0);
-  const rekap={};
-  txF.forEach(tx=>tx.items.forEach(it=>{
-    if(!rekap[it.produk])rekap[it.produk]={qty:0,total:0,satuan:it.satuan};
-    rekap[it.produk].qty+=it.qty;rekap[it.produk].total+=it.subtotal;
+
+  // Data harian
+  const txHari=transaksi.filter(t=>t.tanggal===tgl);
+  const totalHari=txHari.reduce((s,t)=>s+t.total,0);
+  const rekapHari={};
+  txHari.forEach(tx=>tx.items.forEach(it=>{
+    if(!rekapHari[it.produk])rekapHari[it.produk]={qty:0,total:0,satuan:it.satuan};
+    rekapHari[it.produk].qty+=it.qty;rekapHari[it.produk].total+=it.subtotal;
   }));
-  const list=Object.entries(rekap).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total);
-  const maxTotal=list[0]?.total||1;
+  const listHari=Object.entries(rekapHari).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total);
+  const maxHari=listHari[0]?.total||1;
+
+  // Data bulanan — 6 bulan terakhir
+  const bulanMap={};
+  transaksi.forEach(tx=>{
+    const b=tx.tanggal?.slice(0,7)||"";
+    if(b)bulanMap[b]=(bulanMap[b]||0)+tx.total;
+  });
+  const bulanList=Object.entries(bulanMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+  const maxBulan=Math.max(...bulanList.map(([,v])=>v),1);
+
+  // Data produk all-time
+  const produkMap={};
+  transaksi.forEach(tx=>tx.items.forEach(it=>{
+    if(!produkMap[it.produk])produkMap[it.produk]={qty:0,total:0};
+    produkMap[it.produk].qty+=it.qty;produkMap[it.produk].total+=it.subtotal;
+  }));
+  const produkList=Object.entries(produkMap).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total).slice(0,6);
+  const maxProduk=produkList[0]?.total||1;
+
+  const fmtBulan=(b)=>{
+    const [y,m]=b.split("-");
+    const names=["","Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+    return names[parseInt(m)]+" "+y.slice(2);
+  };
 
   return(
     <div>
-      <div style={css.sec}>Laporan Harian</div>
-      <div style={{...css.card,marginBottom:12}}><div style={css.lbl}>Pilih Tanggal</div><input type="date" style={css.inp} value={tgl} onChange={e=>setTgl(e.target.value)}/></div>
-      <div style={css.hero}>
-        <div style={{fontSize:12,fontWeight:700,opacity:0.8,letterSpacing:1}}>TOTAL PENJUALAN</div>
-        <div style={css.bigN}>{fmt(total)}</div>
-        <div style={{display:"flex",gap:16,marginTop:10,fontSize:13,opacity:0.85}}>
-          <span>{txF.length} transaksi</span><span>·</span><span>{list.reduce((s,r)=>s+r.qty,0)} item terjual</span>
-        </div>
+      {/* Toggle */}
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        {[{k:"harian",l:"Harian"},{k:"bulanan",l:"Bulanan & Produk"}].map(({k,l})=>(
+          <button key={k} onClick={()=>setMode(k)} style={{...css.btnS(mode===k?"p":"g"),flex:1,justifyContent:"center"}}>{l}</button>
+        ))}
       </div>
-      {list.length===0?(
-        <div style={{textAlign:"center",color:C.textSub,padding:"40px 0",fontSize:14}}>
-          <div style={{fontSize:40,marginBottom:12}}>📋</div>
-          Tidak ada transaksi pada tanggal ini
-        </div>
-      ):(
-        <>
-          <div style={css.sec}>Produk Terjual</div>
-          {list.map((r,i)=>(
-            <div key={r.nama} style={css.card}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{background:i===0?C.green:i===1?C.teal:C.textMuted,borderRadius:8,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:C.white,fontSize:13}}>{i+1}</div>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:13}}>{r.nama}</div>
-                    <div style={{fontSize:11,color:C.textSub}}>{r.qty} {r.satuan}</div>
+
+      {mode==="harian"&&(
+        <div>
+          <div style={{...css.card,marginBottom:12}}>
+            <div style={css.lbl}>Pilih Tanggal</div>
+            <input type="date" style={css.inp} value={tgl} onChange={e=>setTgl(e.target.value)}/>
+          </div>
+          <div style={css.hero}>
+            <div style={{fontSize:12,fontWeight:700,opacity:0.8,letterSpacing:1}}>TOTAL PENJUALAN</div>
+            <div style={css.bigN}>{fmt(totalHari)}</div>
+            <div style={{display:"flex",gap:16,marginTop:10,fontSize:13,opacity:0.85}}>
+              <span>{txHari.length} transaksi</span><span>·</span>
+              <span>{listHari.reduce((s,r)=>s+r.qty,0)} item terjual</span>
+            </div>
+          </div>
+
+          {listHari.length===0?(
+            <div style={{textAlign:"center",color:C.textSub,padding:"40px 0",fontSize:14}}>
+              <div style={{fontSize:40,marginBottom:12}}>📋</div>
+              Tidak ada transaksi pada tanggal ini
+            </div>
+          ):(
+            <>
+              <div style={css.sec}>Produk Terjual Hari Ini</div>
+              {listHari.map((r,i)=>(
+                <div key={r.nama} style={css.card}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{background:i===0?C.green:i===1?C.teal:C.textMuted,borderRadius:8,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:C.white,fontSize:13}}>{i+1}</div>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13}}>{r.nama}</div>
+                        <div style={{fontSize:11,color:C.textSub}}>{r.qty} {r.satuan}</div>
+                      </div>
+                    </div>
+                    <div style={{color:C.green,fontWeight:900,fontSize:14}}>{fmt(r.total)}</div>
+                  </div>
+                  <div style={{height:8,background:C.bgSub,borderRadius:4}}>
+                    <div style={{height:"100%",width:""+(r.total/maxHari*100)+"%",background:i===0?C.green:i===1?C.teal:"#94a3b8",borderRadius:4,transition:"width 0.5s"}}/>
                   </div>
                 </div>
-                <div style={{color:C.green,fontWeight:900,fontSize:14}}>{fmt(r.total)}</div>
-              </div>
-              <div style={{height:4,background:C.bgSub,borderRadius:4}}>
-                <div style={{height:"100%",width:""+(r.total/maxTotal*100)+"%",background:i===0?C.green:i===1?C.teal:"#94a3b8",borderRadius:4}}/>
-              </div>
-            </div>
-          ))}
-          <div style={css.sec}>Detail Transaksi</div>
-          {txF.map(tx=>(
-            <div key={tx.id} style={css.card}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <div><div style={{fontWeight:800}}>{tx.outlet}</div><div style={{fontSize:11,color:C.textSub}}>#{tx.id}</div></div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{color:C.green,fontWeight:900}}>{fmt(tx.total)}</div>
-                  {tx.kirimWA?<span style={css.pill("g")}><Ic n="check" sz={9}/>WA</span>:<span style={css.pill("a")}>Pending</span>}
-                </div>
-              </div>
-              {tx.items.map((it,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"3px 0",borderTop:"1px solid "+C.bgSub}}>
-                  <span>{it.produk} x{it.qty}</span><span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
+              ))}
+
+              <div style={css.sec}>Detail Transaksi</div>
+              {txHari.map(tx=>(
+                <div key={tx.id} style={css.card}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <div><div style={{fontWeight:800}}>{tx.outlet}</div><div style={{fontSize:11,color:C.textSub}}>#{tx.id}</div></div>
+                    <div style={{color:C.green,fontWeight:900}}>{fmt(tx.total)}</div>
+                  </div>
+                  {tx.items.map((it,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"3px 0",borderTop:"1px solid "+C.bgSub}}>
+                      <span>{it.produk} x{it.qty}</span><span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
+                    </div>
+                  ))}
                 </div>
               ))}
-            </div>
-          ))}
-        </>
+            </>
+          )}
+        </div>
+      )}
+
+      {mode==="bulanan"&&(
+        <div>
+          {/* Grafik Bulanan */}
+          <div style={css.sec}>Penjualan 6 Bulan Terakhir</div>
+          <div style={css.card}>
+            {bulanList.length===0?(
+              <div style={{textAlign:"center",color:C.textSub,padding:20,fontSize:13}}>Belum ada data</div>
+            ):(
+              <div>
+                {bulanList.map(([b,v])=>(
+                  <div key={b} style={{marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                      <span style={{fontSize:12,fontWeight:700,color:C.textMid}}>{fmtBulan(b)}</span>
+                      <span style={{fontSize:12,fontWeight:800,color:C.green}}>{fmt(v)}</span>
+                    </div>
+                    <div style={{height:10,background:C.bgSub,borderRadius:6}}>
+                      <div style={{height:"100%",width:""+(v/maxBulan*100)+"%",background:"linear-gradient(90deg,"+C.greenDark+","+C.green+")",borderRadius:6,transition:"width 0.6s"}}/>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Grafik Top Produk */}
+          <div style={css.sec}>Top Produk (All Time)</div>
+          <div style={css.card}>
+            {produkList.length===0?(
+              <div style={{textAlign:"center",color:C.textSub,padding:20,fontSize:13}}>Belum ada data</div>
+            ):(
+              <div>
+                {produkList.map((r,i)=>(
+                  <div key={r.nama} style={{marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{background:i===0?C.green:i===1?C.teal:i===2?C.amber:C.border,borderRadius:5,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:C.white,fontSize:10}}>{i+1}</div>
+                        <span style={{fontSize:12,fontWeight:700,color:C.textMid}}>{r.nama}</span>
+                      </div>
+                      <span style={{fontSize:12,fontWeight:800,color:C.green}}>{fmt(r.total)}</span>
+                    </div>
+                    <div style={{height:10,background:C.bgSub,borderRadius:6}}>
+                      <div style={{height:"100%",width:""+(r.total/maxProduk*100)+"%",background:i===0?"linear-gradient(90deg,"+C.greenDark+","+C.green+")":i===1?"linear-gradient(90deg,#0f766e,"+C.teal+")":"linear-gradient(90deg,#92400e,"+C.amber+")",borderRadius:6}}/>
+                    </div>
+                    <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{r.qty} item terjual</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Ringkasan total */}
+          <div style={css.hero}>
+            <div style={{fontSize:12,fontWeight:700,opacity:0.8}}>TOTAL OMSET ALL TIME</div>
+            <div style={css.bigN}>{fmt(transaksi.reduce((s,t)=>s+t.total,0))}</div>
+            <div style={{fontSize:13,opacity:0.85,marginTop:8}}>{transaksi.length} transaksi total</div>
+          </div>
+        </div>
       )}
     </div>
   );
