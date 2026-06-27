@@ -12,6 +12,7 @@ const C = {
 };
 
 const fmt = (n) => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",minimumFractionDigits:0}).format(n||0);
+
 const todayISO = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -19,27 +20,24 @@ const todayISO = () => {
   const d = String(now.getDate()).padStart(2,"0");
   return y+"-"+m+"-"+d;
 };
-// Normalisasi tanggal dari berbagai format ke YYYY-MM-DD
+
 const normTgl = (tgl) => {
   if(!tgl) return "";
-  // Sudah format ISO
-  if(/^\d{4}-\d{2}-\d{2}/.test(String(tgl))) return String(tgl).slice(0,10);
-  // Format dari Google Sheets (Date object atau string panjang)
+  const s = String(tgl);
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
   const d = new Date(tgl);
   if(!isNaN(d.getTime())) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,"0");
-    const dd = String(d.getDate()).padStart(2,"0");
-    return y+"-"+m+"-"+dd;
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   }
-  return String(tgl).slice(0,10);
+  return s.slice(0,10);
 };
+
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
 async function apiCall(action, payload={}) {
-  if (APPS_SCRIPT_URL.includes("GANTI")) return {success:false,demo:true};
+  if(APPS_SCRIPT_URL.includes("GANTI")) return {success:false,demo:true};
   try {
-    if (action==="getData") {
+    if(action==="getData"){
       const r = await fetch(APPS_SCRIPT_URL+"?action=getData",{method:"GET",redirect:"follow"});
       return JSON.parse(await r.text());
     } else {
@@ -97,73 +95,71 @@ function Toast({msg,type,onDone}){
   return <div style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",background:bg,color:C.white,padding:"11px 22px",borderRadius:12,zIndex:9999,fontSize:13,fontWeight:700,boxShadow:"0 4px 24px rgba(22,163,74,0.14)",maxWidth:340,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
 
-const D_OUTLETS=[];
-const D_PRODUK=[];
-
 export default function OrderKuNBX() {
-  const [tab,setTab]=useState("home");
-  const [synced,setSynced]=useState(false);
-  const [outlets,setOutlets]=useState(D_OUTLETS);
-  const [produk,setProduk]=useState(D_PRODUK);
-  const [transaksi,setTransaksi]=useState([]);
-  const [toast,setToast]=useState(null);
-  const [aiInsight,setAiInsight]=useState(null);
-  const [loadingAI,setLoadingAI]=useState(false);
+  const [tab,setTab] = useState("home");
+  const [synced,setSynced] = useState(false);
+  const [outlets,setOutlets] = useState([]);
+  const [produk,setProduk] = useState([]);
+  const [transaksi,setTransaksi] = useState([]);
+  const [toast,setToast] = useState(null);
+  const [aiInsight,setAiInsight] = useState(null);
+  const [loadingAI,setLoadingAI] = useState(false);
 
-  const showToast=(msg,type="ok")=>setToast({msg,type});
+  const showToast = (msg,type="ok") => setToast({msg,type});
 
-  const syncData=useCallback(async()=>{
+  const syncData = useCallback(async()=>{
     if(APPS_SCRIPT_URL.includes("GANTI")){showToast("Mode demo","a");return;}
-    const r=await apiCall("getData");
+    const r = await apiCall("getData");
     if(r.success){
-      if(r.outlets)setOutlets(r.outlets);
-      if(r.produk)setProduk(r.produk);
-      if(r.transaksi)setTransaksi(r.transaksi);
-      setSynced(true);showToast("Data tersinkron!");
+      if(r.outlets) setOutlets(r.outlets);
+      if(r.produk) setProduk(r.produk);
+      if(r.transaksi) setTransaksi(r.transaksi);
+      setSynced(true); showToast("Data tersinkron!");
     } else showToast("Gagal sinkron","err");
   },[]);
 
-  useEffect(()=>{syncData();},[]);
+  useEffect(()=>{ syncData(); },[]);
 
-  const fetchAI=useCallback(async()=>{
+  const fetchAI = useCallback(async()=>{
     setLoadingAI(true);
-    const totalBulan=transaksi.reduce((s,t)=>s+t.total,0);
-    const totalHari=transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).reduce((s,t)=>s+t.total,0);
-    const pMap={};
-    transaksi.forEach(tx=>tx.items.forEach(i=>{pMap[i.produk]=(pMap[i.produk]||0)+i.qty;}));
-    const topProduk=Object.entries(pMap).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>n+"("+q+"sak)").join(", ");
-    const stokRendah=produk.filter(p=>p.stok<25).map(p=>p.nama+"("+p.stok+"sak)").join(", ");
-    const outletAktif=outlets.filter(o=>o.aktif).length;
+    const totalBulan = transaksi.reduce((s,t)=>s+t.total,0);
+    const totalHari = transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).reduce((s,t)=>s+t.total,0);
+    const pMap = {};
+    transaksi.forEach(tx=>tx.items.forEach(i=>{ pMap[i.produk]=(pMap[i.produk]||0)+i.qty; }));
+    const topProduk = Object.entries(pMap).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>n+"("+q+")").join(", ");
+    const stokRendah = produk.filter(p=>p.stok<25).map(p=>p.nama).join(", ");
+    const outletAktif = outlets.filter(o=>o.aktif).length;
     try {
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
+      const res = await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           model:"claude-sonnet-4-6",
           max_tokens:1000,
-          system:"Kamu adalah konsultan sales untuk distributor tepung terigu di Nabire, Papua. Jawab Bahasa Indonesia informal. Format JSON saja: {\"situasi\":\"...\",\"promo\":[\"...\"],\"event\":[\"...\"],\"push_produk\":\"...\",\"target_minggu\":\"...\"}",
-          messages:[{role:"user",content:"Data: total bulan Rp"+totalBulan.toLocaleString("id-ID")+", hari ini Rp"+totalHari.toLocaleString("id-ID")+", "+transaksi.length+" transaksi, "+outletAktif+" outlet aktif, top: "+(topProduk||"belum ada")+", stok tipis: "+(stokRendah||"aman")+". Beri strategi tingkatkan omset."}],
+          system:"Kamu konsultan sales distributor tepung terigu Nabire Papua. Jawab Bahasa Indonesia informal. Format JSON saja tanpa markdown: {\"situasi\":\"...\",\"promo\":[\"...\"],\"event\":[\"...\"],\"push_produk\":\"...\",\"target_minggu\":\"...\"}",
+          messages:[{role:"user",content:"Data: bulan Rp"+totalBulan+", hari Rp"+totalHari+", "+transaksi.length+" tx, "+outletAktif+" outlet, top: "+(topProduk||"belum ada")+", tipis: "+(stokRendah||"aman")+". Beri strategi."}],
         }),
       });
-      const data=await res.json();
-      const txt=data.content?.find(b=>b.type==="text")?.text||"{}";
-      const clean=txt.replace(/[`]{3}json/g,"").replace(/[`]{3}/g,"").trim();
-      try{setAiInsight(JSON.parse(clean));}catch(pe){setAiInsight({situasi:clean.slice(0,300),promo:[],event:[],push_produk:"",target_minggu:""});}
-    } catch(e){setAiInsight({situasi:"Gagal memuat insight AI.",promo:[],event:[],push_produk:"",target_minggu:""});}
+      const data = await res.json();
+      const txt = data.content?.find(b=>b.type==="text")?.text||"{}";
+      const clean = txt.replace(/[`]{3}json/g,"").replace(/[`]{3}/g,"").trim();
+      try{ setAiInsight(JSON.parse(clean)); }
+      catch(pe){ setAiInsight({situasi:clean.slice(0,300),promo:[],event:[],push_produk:"",target_minggu:""}); }
+    } catch(e){ setAiInsight({situasi:"Gagal memuat insight AI.",promo:[],event:[],push_produk:"",target_minggu:""}); }
     setLoadingAI(false);
   },[transaksi,produk,outlets]);
 
-  useEffect(()=>{fetchAI();},[]);
+  useEffect(()=>{ fetchAI(); },[]);
 
-  const totalBulan=transaksi.reduce((s,t)=>s+t.total,0);
-  const totalHari=transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).reduce((s,t)=>s+t.total,0);
-  const txHari=transaksi.filter(t=>normTgl(t.tanggal)===todayISO()).length;
-  // Outlet aktif = % outlet yang sudah transaksi bulan ini
-  const bulanIni=todayISO().slice(0,7);
-  const outletTxBulanIni=new Set(transaksi.filter(t=>normTgl(t.tanggal).slice(0,7)===bulanIni).map(t=>t.outlet));
-  const totalOutlet=outlets.filter(o=>o.aktif).length;
-  const outAktifPct=totalOutlet>0?Math.round(outletTxBulanIni.size/totalOutlet*100):0;
-  const totalQty=transaksi.flatMap(t=>t.items).reduce((s,i)=>s+i.qty,0);
+  const today = todayISO();
+  const bulanIni = today.slice(0,7);
+  const totalBulan = transaksi.reduce((s,t)=>s+t.total,0);
+  const totalHari = transaksi.filter(t=>normTgl(t.tanggal)===today).reduce((s,t)=>s+t.total,0);
+  const txHari = transaksi.filter(t=>normTgl(t.tanggal)===today).length;
+  const outletTxBulan = new Set(transaksi.filter(t=>normTgl(t.tanggal).slice(0,7)===bulanIni).map(t=>t.outlet));
+  const totalOutlet = outlets.filter(o=>o.aktif).length;
+  const outAktifPct = totalOutlet>0 ? Math.round(outletTxBulan.size/totalOutlet*100) : 0;
+  const totalQty = transaksi.flatMap(t=>t.items).reduce((s,i)=>s+i.qty,0);
 
   return (
     <div style={css.app}>
@@ -179,7 +175,7 @@ export default function OrderKuNBX() {
         </div>
       </div>
       <div style={{padding:"16px 14px 0"}}>
-        {tab==="home"&&<Home {...{totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,aiInsight,loadingAI,fetchAI}}/>}
+        {tab==="home"&&<Home {...{totalBulan,totalHari,txHari,outAktifPct,outletTxBulan,totalOutlet,totalQty,transaksi,setTab,aiInsight,loadingAI,fetchAI}}/>}
         {tab==="transaksi"&&<Transaksi {...{outlets,produk,transaksi,setTransaksi,showToast}}/>}
         {tab==="outlet"&&<Outlet {...{outlets,setOutlets,showToast}}/>}
         {tab==="barang"&&<Barang {...{produk,setProduk,showToast}}/>}
@@ -194,8 +190,8 @@ export default function OrderKuNBX() {
   );
 }
 
-function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,aiInsight,loadingAI,fetchAI}){
-  const recent=[...transaksi].reverse().slice(0,3);
+function Home({totalBulan,totalHari,txHari,outAktifPct,outletTxBulan,totalOutlet,totalQty,transaksi,setTab,aiInsight,loadingAI,fetchAI}){
+  const recent = [...transaksi].reverse().slice(0,3);
   return(
     <div>
       <div style={css.hero}>
@@ -209,12 +205,13 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
             <div style={{fontSize:11,opacity:0.7}}>{txHari} transaksi</div>
           </div>
           <div style={{background:"rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 16px",flex:1}}>
-            <div style={{fontSize:11,opacity:0.75}}>Outlet Bertransaksi</div>
+            <div style={{fontSize:11,opacity:0.75}}>Outlet Transaksi</div>
             <div style={{fontWeight:800,fontSize:18}}>{outAktifPct}%</div>
-            <div style={{fontSize:11,opacity:0.7}}>{outletTxBulanIni.size}/{totalOutlet} outlet</div>
+            <div style={{fontSize:11,opacity:0.7}}>{outletTxBulan.size}/{totalOutlet} outlet</div>
           </div>
         </div>
       </div>
+
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
         {[{i:"cart",l:"Order",k:"transaksi",bg:C.greenPale,cl:C.green},{i:"box",l:"Produk",k:"barang",bg:C.tealPale,cl:C.teal},{i:"store",l:"Outlet",k:"outlet",bg:C.amberPale,cl:C.amber},{i:"chart",l:"Laporan",k:"laporan",bg:"#ede9fe",cl:"#7c3aed"}].map(({i,l,k,bg,cl})=>(
           <button key={k} onClick={()=>setTab(k)} style={{background:bg,border:"none",borderRadius:14,padding:"14px 4px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:7,cursor:"pointer",color:cl,fontSize:11,fontWeight:700,boxShadow:"0 2px 12px rgba(22,163,74,0.10)"}}>
@@ -222,6 +219,7 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
           </button>
         ))}
       </div>
+
       <div style={{...css.card,border:"1.5px solid "+C.greenMid,background:"linear-gradient(135deg,#f0fdf4,#ffffff)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -238,7 +236,7 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
         ):aiInsight?(
           <div>
             {aiInsight.situasi&&<div style={{background:C.bgSub,borderRadius:10,padding:"10px 13px",marginBottom:10,fontSize:13,color:C.textMid,lineHeight:1.6}}>📊 {aiInsight.situasi}</div>}
-            {aiInsight.promo?.length>0&&(
+            {aiInsight.promo&&aiInsight.promo.length>0&&(
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:11,fontWeight:800,color:C.amber,letterSpacing:1,marginBottom:6}}>🎯 REKOMENDASI PROMO</div>
                 {aiInsight.promo.map((p,i)=>(
@@ -249,9 +247,9 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
                 ))}
               </div>
             )}
-            {aiInsight.event?.length>0&&(
+            {aiInsight.event&&aiInsight.event.length>0&&(
               <div style={{marginBottom:10}}>
-                <div style={{fontSize:11,fontWeight:800,color:"#7c3aed",letterSpacing:1,marginBottom:6}}>🎪 IDE EVENT / PROGRAM</div>
+                <div style={{fontSize:11,fontWeight:800,color:"#7c3aed",letterSpacing:1,marginBottom:6}}>🎪 IDE EVENT</div>
                 {aiInsight.event.map((e,i)=>(
                   <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6}}>
                     <div style={{background:"#ede9fe",color:"#7c3aed",borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:11,whiteSpace:"nowrap"}}>Ide {i+1}</div>
@@ -267,6 +265,7 @@ function Home({totalBulan,totalHari,txHari,outAktif,totalQty,transaksi,setTab,ai
           <div style={{textAlign:"center",color:C.textSub,fontSize:13,padding:"16px 0"}}>Klik refresh untuk muat insight AI</div>
         )}
       </div>
+
       {recent.length>0&&(
         <div>
           <div style={css.sec}>Transaksi Terbaru</div>
@@ -295,13 +294,11 @@ function buildPesanWA(tx, produkList) {
   const kontak = (tx.outletKontak||"-").replace(/^62/,"0").replace(/([0-9]{4})([0-9]{4})([0-9]+)/,"$1-$2-$3");
   const lines = tx.items.map(i=>{
     const p = produkList.find(p=>p.nama===i.produk);
-    const em = p?.emoji||"📦";
-    return em+" "+i.produk+" x "+i.qty+" "+i.satuan;
+    return (p&&p.emoji?p.emoji:"📦")+" "+i.produk+" x "+i.qty+" "+i.satuan+(i.diskon?" (paket)":"");
   }).join("\n");
-  // Rekap per satuan
-  const rekapSatuan={};
-  tx.items.forEach(i=>{rekapSatuan[i.satuan]=(rekapSatuan[i.satuan]||0)+i.qty;});
-  const totalLine=Object.entries(rekapSatuan).map(([sat,qty])=>qty+" "+sat).join(", ");
+  const rekapSatuan = {};
+  tx.items.forEach(i=>{ rekapSatuan[i.satuan]=(rekapSatuan[i.satuan]||0)+i.qty; });
+  const totalLine = Object.entries(rekapSatuan).map(([sat,qty])=>qty+" "+sat).join(", ");
   return [
     "*📝 ORDER BARU*","",
     "📅 "+tglFmt,
@@ -316,55 +313,66 @@ function buildPesanWA(tx, produkList) {
 }
 
 function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
-  const [step,setStep]=useState("outlet");
-  const [outletId,setOutletId]=useState("");
-  const [keranjang,setKeranjang]=useState({});
-  const [diskon,setDiskon]=useState({}); // {produkId: {minQty, hargaDiskon}}
-  const [saving,setSaving]=useState(false);
-  const [showHistory,setShowHistory]=useState(false);
+  const [step,setStep] = useState("outlet");
+  const [outletId,setOutletId] = useState("");
+  const [keranjang,setKeranjang] = useState({});
+  const [saving,setSaving] = useState(false);
+  const [showHistory,setShowHistory] = useState(false);
 
-  const outlet=outlets.find(o=>o.id===outletId);
-  const totalItem=Object.values(keranjang).reduce((s,q)=>s+q,0);
-  const getHarga=(id,qty)=>{
-    const p=produk.find(p=>p.id===id);if(!p)return 0;
-    // Cek apakah ada paket diskon
+  const outlet = outlets.find(o=>o.id===outletId);
+
+  const getHarga = (id, qty) => {
+    const p = produk.find(p=>p.id===id);
+    if(!p) return 0;
     if(p.pakets&&p.pakets.length>0){
-      const cocok=p.pakets.filter(pk=>qty>=pk.minQty).sort((a,b)=>b.minQty-a.minQty)[0];
-      if(cocok)return cocok.harga;
+      const cocok = p.pakets.filter(pk=>qty>=pk.minQty).sort((a,b)=>b.minQty-a.minQty)[0];
+      if(cocok) return cocok.harga;
     }
     return p.harga;
   };
-  const totalHarga=Object.entries(keranjang).reduce((s,[id,qty])=>{
-    return s+getHarga(id,qty)*qty;
-  },0);
 
-  const add=(id)=>setKeranjang(prev=>({...prev,[id]:(prev[id]||0)+1}));
-  const kurang=(id)=>setKeranjang(prev=>{const n={...prev};if(n[id]>1)n[id]--;else delete n[id];return n;});
-  const hapusItem=(id)=>setKeranjang(prev=>{const n={...prev};delete n[id];return n;});
+  const totalItem = Object.values(keranjang).reduce((s,q)=>s+q,0);
+  const totalHarga = Object.entries(keranjang).reduce((s,[id,qty])=>s+getHarga(id,qty)*qty,0);
 
-  const kirimWA=(tx,isAdmin=true)=>{
-    const nomor=isAdmin?ADMIN_WA:(tx.outletKontak||"").replace(/[^0-9]/g,"").replace(/^0/,"62");
-    const pesan=buildPesanWA(tx,produk);
-    const msg=encodeURIComponent(pesan);
-    window.open("https://wa.me/"+nomor+"?text="+msg,"_blank");
+  const add = (id) => setKeranjang(prev=>({...prev,[id]:(prev[id]||0)+1}));
+  const kurang = (id) => setKeranjang(prev=>{
+    const n={...prev};
+    if(n[id]>1) n[id]--;
+    else delete n[id];
+    return n;
+  });
+  const hapusItem = (id) => setKeranjang(prev=>{const n={...prev};delete n[id];return n;});
+
+  const kirimWA = (tx, isAdmin=true) => {
+    const nomor = isAdmin ? ADMIN_WA : (tx.outletKontak||"").replace(/[^0-9]/g,"").replace(/^0/,"62");
+    const pesan = buildPesanWA(tx, produk);
+    window.open("https://wa.me/"+nomor+"?text="+encodeURIComponent(pesan),"_blank");
     setTransaksi(prev=>prev.map(t=>t.id===tx.id?{...t,kirimWA:true,kirimWAAt:normTgl(tx.tanggal)}:t));
     showToast("WhatsApp terbuka!","wa");
   };
 
-  const checkout=async()=>{
-    const valid=Object.entries(keranjang).filter(([,q])=>q>0);
-    if(!valid.length)return showToast("Keranjang kosong!","err");
+  const checkout = async() => {
+    const valid = Object.entries(keranjang).filter(([,q])=>q>0);
+    if(!valid.length) return showToast("Keranjang kosong!","err");
     setSaving(true);
-    const txItems=valid.map(([id,qty])=>{
-      const p=produk.find(p=>p.id===id);
-      const h=getHarga(id,qty);
-      return{produk:p.nama,qty,satuan:p.satuan,harga:h,subtotal:h*qty,diskon:h<p.harga};
+    const txItems = valid.map(([id,qty])=>{
+      const p = produk.find(p=>p.id===id);
+      const h = getHarga(id,qty);
+      return {produk:p.nama,qty,satuan:p.satuan,harga:h,subtotal:h*qty,diskon:h<p.harga};
     });
-    const tx={id:"T"+uid(),tanggal:todayISO(),outlet:outlet.nama,outletKontak:outlet.kontak,items:txItems,total:txItems.reduce((s,i)=>s+i.subtotal,0),kirimWA:false};
-    if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("addTransaksi",{transaksi:tx});
+    const tx = {
+      id:"T"+uid(),
+      tanggal:todayISO(),
+      outlet:outlet.nama,
+      outletKontak:outlet.kontak,
+      items:txItems,
+      total:txItems.reduce((s,i)=>s+i.subtotal,0),
+      kirimWA:false
+    };
+    if(!APPS_SCRIPT_URL.includes("GANTI")) await apiCall("addTransaksi",{transaksi:tx});
     setTransaksi(prev=>[...prev,tx]);
-    setKeranjang({});setOutletId("");setStep("outlet");
-    showToast("Order tersimpan ke rekapan! ✅");
+    setKeranjang({}); setOutletId(""); setStep("outlet");
+    showToast("Order tersimpan ke rekapan!");
     setSaving(false);
   };
 
@@ -383,12 +391,13 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             </div>
             <div style={{textAlign:"right"}}>
               <div style={{color:C.green,fontWeight:900}}>{fmt(tx.total)}</div>
-              {tx.kirimWA?<span style={css.pill("g")}><Ic n="check" sz={9}/>WA {tx.kirimWAAt}</span>:<span style={css.pill("a")}><Ic n="warn" sz={9}/>Belum kirim</span>}
+              {tx.kirimWA?<span style={css.pill("g")}><Ic n="check" sz={9}/>Terkirim</span>:<span style={css.pill("a")}><Ic n="warn" sz={9}/>Belum</span>}
             </div>
           </div>
           {tx.items.map((it,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"3px 0",borderTop:"1px solid "+C.bgSub}}>
-              <span>{it.produk} x{it.qty}</span><span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
+              <span>{it.produk} x{it.qty}{it.diskon?" 🏷️":""}</span>
+              <span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
             </div>
           ))}
           {!tx.kirimWA&&(
@@ -410,19 +419,18 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
           <div key={s} style={{display:"flex",alignItems:"center",gap:4}}>
             <div style={{width:26,height:26,borderRadius:"50%",background:(step===s||(i===0&&step!=="outlet")||(i===1&&step==="keranjang"))?C.green:C.bgSub,color:(step===s||(i===0&&step!=="outlet")||(i===1&&step==="keranjang"))?C.white:C.textMuted,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800}}>{i+1}</div>
             <span style={{fontSize:10,color:step===s?C.green:C.textMuted,fontWeight:step===s?700:400}}>{s==="outlet"?"Outlet":s==="katalog"?"Katalog":"Keranjang"}</span>
-            {i<2&&<div style={{width:14,height:2,background:C.border,marginLeft:4}}/>}
+            {i<2&&<div style={{width:14,height:2,background:C.border}}/>}
           </div>
         ))}
+        <div style={{flex:1}}/>
+        <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
       </div>
 
       {step==="outlet"&&(
         <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={css.sec}>Pilih Outlet</div>
-            <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
-          </div>
+          <div style={css.sec}>Pilih Outlet</div>
           {outlets.filter(o=>o.aktif).map(o=>(
-            <div key={o.id} onClick={()=>{setOutletId(o.id);setStep("katalog");}} style={{...css.card,cursor:"pointer",border:"1px solid "+C.border}}>
+            <div key={o.id} onClick={()=>{setOutletId(o.id);setStep("katalog");}} style={{...css.card,cursor:"pointer"}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:46,height:46,borderRadius:10,background:C.greenPale,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:C.green}}><Ic n="store" sz={24}/></div>
                 <div style={{flex:1}}>
@@ -443,7 +451,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <div style={css.sec}>Katalog Produk</div>
-              <div style={{fontSize:12,color:C.green,fontWeight:700,marginTop:-6}}>🏪 {outlet?.nama}</div>
+              <div style={{fontSize:12,color:C.green,fontWeight:700,marginTop:-6}}>🏪 {outlet&&outlet.nama}</div>
             </div>
             <div style={{display:"flex",gap:6}}>
               <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
@@ -457,34 +465,33 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
           )}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             {produk.map(p=>{
-              const qty=keranjang[p.id]||0;
+              const qty = keranjang[p.id]||0;
+              const harga = getHarga(p.id, qty>0?qty:1);
+              const adaDiskon = qty>0&&harga<p.harga;
+              const adaPaket = p.pakets&&p.pakets.length>0;
               return(
                 <div key={p.id} style={{background:C.bgCard,borderRadius:14,border:qty>0?"1.5px solid "+C.green:"1px solid "+C.border,overflow:"hidden",boxShadow:"0 2px 8px rgba(22,163,74,0.08)"}}>
                   <div style={{width:"100%",height:110,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",position:"relative"}}>
-                    {p.foto
-                      ?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";}}/>
-                      :null}
-                    {!p.foto&&<span style={{fontSize:48}}>{p.emoji||"📦"}</span>}
+                    {p.foto?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";}}/>:null}
+                    {!p.foto&&<span style={{fontSize:44}}>{p.emoji||"📦"}</span>}
                     {qty>0&&<div style={{position:"absolute",top:6,right:6,background:C.green,color:C.white,borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13}}>{qty}</div>}
                     {p.stok<20&&<div style={{position:"absolute",top:6,left:6,background:C.red,color:C.white,borderRadius:6,padding:"2px 5px",fontSize:9,fontWeight:700}}>Tipis!</div>}
+                    {adaPaket&&<div style={{position:"absolute",bottom:6,left:6,background:C.amber,color:C.white,borderRadius:6,padding:"2px 5px",fontSize:9,fontWeight:700}}>🏷️ Paket</div>}
                   </div>
                   <div style={{padding:"8px 10px 10px"}}>
                     <div style={{fontWeight:700,fontSize:12,marginBottom:1,lineHeight:1.3}}>{p.nama}</div>
                     <div style={{fontSize:10,color:C.textSub}}>Stok: {p.stok} {p.satuan}</div>
                     <div style={{margin:"4px 0 8px"}}>
-                      {(()=>{
-                        const qty=keranjang[p.id]||0;
-                        const h=qty>0?getHarga(p.id,qty):p.harga;
-                        const diskon=qty>0&&h<p.harga;
-                        return(
-                          <div>
-                            <span style={{color:diskon?C.red:C.green,fontWeight:800,fontSize:13,textDecoration:diskon?"none":"none"}}>{fmt(h)}</span>
-                            {diskon&&<span style={{color:C.textMuted,fontSize:10,textDecoration:"line-through",marginLeft:4}}>{fmt(p.harga)}</span>}
-                            {p.pakets?.length>0&&<div style={{fontSize:9,color:C.amber,fontWeight:700}}>🏷️ Ada paket harga</div>}
-                          </div>
-                        );
-                      })()}
+                      <span style={{color:adaDiskon?C.red:C.green,fontWeight:800,fontSize:13}}>{fmt(qty>0?harga:p.harga)}</span>
+                      {adaDiskon&&<span style={{color:C.textMuted,fontSize:10,textDecoration:"line-through",marginLeft:4}}>{fmt(p.harga)}</span>}
                     </div>
+                    {adaPaket&&qty===0&&(
+                      <div style={{fontSize:9,color:C.amber,marginBottom:4}}>
+                        {p.pakets.sort((a,b)=>a.minQty-b.minQty).map((pk,i)=>(
+                          <div key={i}>Min {pk.minQty} → {fmt(pk.harga)}</div>
+                        ))}
+                      </div>
+                    )}
                     {qty===0
                       ?<button onClick={()=>add(p.id)} style={{background:C.green,color:C.white,border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:12,cursor:"pointer",width:"100%"}}>+ Keranjang</button>
                       :<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:C.greenPale,borderRadius:8,padding:"4px 8px"}}>
@@ -509,10 +516,13 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
           </div>
           <div style={{...css.card,background:C.greenPale,border:"1.5px solid "+C.green,marginBottom:14}}>
             <div style={{fontSize:12,color:C.textSub}}>Outlet</div>
-            <div style={{fontWeight:800,fontSize:15,color:C.greenDark}}>🏪 {outlet?.nama}</div>
+            <div style={{fontWeight:800,fontSize:15,color:C.greenDark}}>🏪 {outlet&&outlet.nama}</div>
           </div>
           {Object.entries(keranjang).map(([id,qty])=>{
-            const p=produk.find(p=>p.id===id);if(!p)return null;
+            const p = produk.find(p=>p.id===id);
+            if(!p) return null;
+            const h = getHarga(id,qty);
+            const diskon = h<p.harga;
             return(
               <div key={id} style={{...css.card,display:"flex",gap:10,alignItems:"center",padding:12}}>
                 <div style={{width:50,height:50,borderRadius:10,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
@@ -520,8 +530,13 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
                 </div>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:13}}>{p.nama}</div>
-                  <div style={{fontSize:11,color:C.textSub}}>{fmt(p.harga)} / {p.satuan}</div>
-                  <div style={{color:C.green,fontWeight:800}}>{fmt(p.harga*qty)}</div>
+                  <div style={{fontSize:11,color:C.textSub}}>
+                    <span style={{color:diskon?C.red:C.textSub}}>{fmt(h)}</span>
+                    {diskon&&<span style={{textDecoration:"line-through",marginLeft:4,color:C.textMuted}}>{fmt(p.harga)}</span>}
+                    <span style={{marginLeft:4}}>/ {p.satuan}</span>
+                    {diskon&&<span style={css.pill("a")} > 🏷️ Paket</span>}
+                  </div>
+                  <div style={{color:C.green,fontWeight:800}}>{fmt(h*qty)}</div>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:8,padding:"4px 8px"}}>
@@ -543,10 +558,10 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
               <span style={{fontSize:24,fontWeight:900,color:C.green}}>{fmt(totalHarga)}</span>
             </div>
           </div>
-          <button onClick={checkout} disabled={saving} style={{...css.btn("wa"),marginTop:12}}>
-            <Ic n="wa" sz={18}/>{saving?"Memproses...":"Checkout & Kirim ke Admin WA"}
+          <button onClick={checkout} disabled={saving} style={{...css.btn(),marginTop:12}}>
+            <Ic n="send" sz={16}/>{saving?"Memproses...":"Simpan ke Rekapan"}
           </button>
-          <div style={{textAlign:"center",fontSize:11,color:C.textSub,marginTop:6}}>Tersimpan ke rekapan + otomatis kirim WA Admin</div>
+          <div style={{textAlign:"center",fontSize:11,color:C.textSub,marginTop:6}}>Kirim WA ke admin bisa dilakukan dari menu Riwayat</div>
         </div>
       )}
     </div>
@@ -554,15 +569,15 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
 }
 
 function Outlet({outlets,setOutlets,showToast}){
-  const [form,setForm]=useState({nama:"",alamat:"",kontak:""});
-  const [showForm,setShowForm]=useState(false);
+  const [form,setForm] = useState({nama:"",alamat:"",kontak:""});
+  const [showForm,setShowForm] = useState(false);
 
-  const save=async()=>{
-    if(!form.nama)return showToast("Nama outlet wajib!","err");
-    const o={id:"O"+uid(),...form,aktif:true};
-    if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("addOutlet",{outlet:o});
+  const save = async() => {
+    if(!form.nama) return showToast("Nama outlet wajib!","err");
+    const o = {id:"O"+uid(),...form,aktif:true};
+    if(!APPS_SCRIPT_URL.includes("GANTI")) await apiCall("addOutlet",{outlet:o});
     setOutlets(prev=>[...prev,o]);
-    setForm({nama:"",alamat:"",kontak:""});setShowForm(false);
+    setForm({nama:"",alamat:"",kontak:""}); setShowForm(false);
     showToast("Outlet ditambahkan!");
   };
 
@@ -570,7 +585,9 @@ function Outlet({outlets,setOutlets,showToast}){
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <div style={css.sec}>Daftar Outlet ({outlets.length})</div>
-        <button onClick={()=>setShowForm(!showForm)} style={css.btnS(showForm?"r":"p")}>{showForm?<><Ic n="close" sz={12}/>Batal</>:<><Ic n="plus" sz={12}/>Tambah</>}</button>
+        <button onClick={()=>setShowForm(!showForm)} style={css.btnS(showForm?"r":"p")}>
+          {showForm?<><Ic n="close" sz={12}/>Batal</>:<><Ic n="plus" sz={12}/>Tambah</>}
+        </button>
       </div>
       {showForm&&(
         <div style={{...css.card,border:"1.5px solid "+C.green,marginBottom:16}}>
@@ -604,46 +621,55 @@ function Outlet({outlets,setOutlets,showToast}){
 }
 
 function Barang({produk,setProduk,showToast}){
-  const [editId,setEditId]=useState(null);
-  const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:"",pakets:[]});
-  const fileRef=useRef();
-  const emojis=["🌾","🏔️","🚪","📦","⚡","🏗️","🧱","🔶"];
+  const [editId,setEditId] = useState(null);
+  const [showForm,setShowForm] = useState(false);
+  const [form,setForm] = useState({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:"",pakets:[]});
+  const fileRef = useRef();
+  const emojis = ["🌾","🏔️","🚪","📦","⚡","🏗️","🧱","🔶"];
 
-  const handlePhoto=(e)=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>setForm(f=>({...f,foto:ev.target.result}));
+  const handlePhoto = (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(f=>({...f,foto:ev.target.result}));
     reader.readAsDataURL(file);
   };
 
-  const openEdit=(p)=>{
-    setEditId(p.id);setShowForm(true);
+  const openEdit = (p) => {
+    setEditId(p.id); setShowForm(true);
     setForm({nama:p.nama,satuan:p.satuan,harga:String(p.harga),stok:String(p.stok),emoji:p.emoji||"🌾",foto:p.foto||"",pakets:p.pakets||[]});
     window.scrollTo({top:0,behavior:"smooth"});
   };
 
-  const resetForm=()=>{setEditId(null);setShowForm(false);setForm({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:"",pakets:[]});};
+  const resetForm = () => { setEditId(null); setShowForm(false); setForm({nama:"",satuan:"Sak",harga:"",stok:"",emoji:"🌾",foto:"",pakets:[]}); };
 
-  const save=async()=>{
-    if(!form.nama||!form.harga)return showToast("Nama dan harga wajib!","err");
+  const tambahPaket = () => {
+    const min = window.prompt("Minimum qty (contoh: 100):");
+    if(!min) return;
+    const harga = window.prompt("Harga khusus per "+form.satuan+" (contoh: 235000):");
+    if(!harga) return;
+    setForm(f=>({...f,pakets:[...(f.pakets||[]),{minQty:Number(min),harga:Number(harga)}]}));
+  };
+
+  const save = async() => {
+    if(!form.nama||!form.harga) return showToast("Nama dan harga wajib!","err");
+    const data = {...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]};
     if(editId){
-      setProduk(prev=>prev.map(p=>p.id===editId?{...p,...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]}:p));
-      if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("updateProduk",{produk:{id:editId,...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]}});
+      setProduk(prev=>prev.map(p=>p.id===editId?{...p,...data}:p));
+      if(!APPS_SCRIPT_URL.includes("GANTI")) await apiCall("updateProduk",{produk:{id:editId,...data}});
       showToast("Produk diperbarui!");
     } else {
-      const p={id:"P"+uid(),...form,harga:Number(form.harga),stok:Number(form.stok),pakets:form.pakets||[]};
-      if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("addProduk",{produk:p});
+      const p = {id:"P"+uid(),...data};
+      if(!APPS_SCRIPT_URL.includes("GANTI")) await apiCall("addProduk",{produk:p});
       setProduk(prev=>[...prev,p]);
       showToast("Produk ditambahkan!");
     }
     resetForm();
   };
 
-  const hapus=async(id)=>{
-    if(!window.confirm("Hapus produk ini?"))return;
+  const hapus = async(id) => {
+    if(!window.confirm("Hapus produk ini?")) return;
     setProduk(prev=>prev.filter(p=>p.id!==id));
-    if(!APPS_SCRIPT_URL.includes("GANTI"))await apiCall("deleteProduk",{id});
+    if(!APPS_SCRIPT_URL.includes("GANTI")) await apiCall("deleteProduk",{id});
     showToast("Produk dihapus!");
   };
 
@@ -653,12 +679,14 @@ function Barang({produk,setProduk,showToast}){
         <div style={css.sec}>Daftar Barang ({produk.length})</div>
         {!editId&&<button onClick={()=>{setShowForm(true);setEditId(null);}} style={css.btnS()}><Ic n="plus" sz={12}/>Tambah</button>}
       </div>
+
       {showForm&&(
         <div style={{...css.card,border:"1.5px solid "+(editId?C.teal:C.green),marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontWeight:800,color:editId?C.teal:C.greenDark,fontSize:14}}>{editId?"✏️ Edit Produk":"➕ Produk Baru"}</div>
             <button onClick={resetForm} style={{background:"none",border:"none",cursor:"pointer",color:C.textSub}}><Ic n="close" sz={18}/></button>
           </div>
+
           <div style={{marginBottom:12}}>
             <div style={css.lbl}>Foto Produk</div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -676,52 +704,51 @@ function Barang({produk,setProduk,showToast}){
               </div>
             </div>
           </div>
-          {[{l:"Nama Produk *",k:"nama",p:"cth: Kompas 25kg"},{l:"Harga (Rp) *",k:"harga",p:"185000",t:"number"},{l:"Stok",k:"stok",p:"100",t:"number"}].map(({l,k,p,t="text"})=>(
+
+          {[{l:"Nama Produk *",k:"nama",p:"cth: Kompas 25kg"},{l:"Harga Normal (Rp) *",k:"harga",p:"185000",t:"number"},{l:"Stok",k:"stok",p:"100",t:"number"}].map(({l,k,p,t="text"})=>(
             <div key={k} style={{marginBottom:10}}><div style={css.lbl}>{l}</div><input type={t} style={css.inp} placeholder={p} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/></div>
           ))}
+
           <div style={css.lbl}>Satuan</div>
           <select style={{...css.sel,marginBottom:12}} value={form.satuan} onChange={e=>setForm({...form,satuan:e.target.value})}>
             {["Sak","Kg","Karton","Pcs"].map(x=><option key={x}>{x}</option>)}
           </select>
-          {/* Paket Harga */}
+
           <div style={{marginBottom:12}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <div style={css.lbl}>Paket Harga Khusus</div>
-              <button onClick={()=>{
-                const min=prompt("Minimum qty untuk paket (contoh: 100):");
-                const harga=prompt("Harga per sak untuk paket tersebut (contoh: 235000):");
-                if(min&&harga){
-                  const pk={minQty:Number(min),harga:Number(harga)};
-                  setForm(f=>({...f,pakets:[...(f.pakets||[]),pk]}));
-                }
-              }} style={{...css.btnS("g"),fontSize:11,padding:"4px 10px"}}>+ Tambah Paket</button>
+              <button onClick={tambahPaket} style={{...css.btnS("g"),fontSize:11,padding:"4px 10px"}}><Ic n="plus" sz={11}/>Paket</button>
             </div>
             {(form.pakets||[]).length===0
-              ?<div style={{fontSize:12,color:C.textMuted,fontStyle:"italic"}}>Belum ada paket. Contoh: beli 100 sak harga Rp 235.000</div>
-              :(form.pakets||[]).map((pk,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.amberPale,borderRadius:8,padding:"6px 10px",marginBottom:4}}>
-                  <span style={{fontSize:12,color:C.amber,fontWeight:700}}>🏷️ Min {pk.minQty} {form.satuan} → {fmt(pk.harga)}/sak</span>
-                  <button onClick={()=>setForm(f=>({...f,pakets:f.pakets.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:16}}>×</button>
+              ?<div style={{fontSize:12,color:C.textMuted,fontStyle:"italic",padding:"8px 0"}}>Belum ada. Contoh: beli 100 sak → Rp 235.000/sak</div>
+              :(form.pakets||[]).sort((a,b)=>a.minQty-b.minQty).map((pk,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.amberPale,borderRadius:8,padding:"7px 10px",marginBottom:4}}>
+                  <span style={{fontSize:12,color:C.amber,fontWeight:700}}>🏷️ Min {pk.minQty} {form.satuan} → {fmt(pk.harga)}/{form.satuan}</span>
+                  <button onClick={()=>setForm(f=>({...f,pakets:f.pakets.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontWeight:700,fontSize:16,lineHeight:1}}>×</button>
                 </div>
               ))
             }
           </div>
+
           <button onClick={save} style={css.btn()}><Ic n="check" sz={15}/>{editId?"Simpan Perubahan":"Tambah Produk"}</button>
         </div>
       )}
+
       {produk.map(p=>(
         <div key={p.id} style={{...css.card,padding:12}}>
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <div style={{width:60,height:60,borderRadius:12,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,border:"1px solid "+C.border,position:"relative"}}>
-              {p.foto
-                ?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";e.target.parentNode.querySelector(".emoji-fb").style.display="flex";}}/>
-                :null}
-              <span className="emoji-fb" style={{fontSize:34,display:p.foto?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>{p.emoji||"📦"}</span>
+            <div style={{width:60,height:60,borderRadius:12,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,border:"1px solid "+C.border}}>
+              {p.foto?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";}}/>:<span style={{fontSize:34}}>{p.emoji||"📦"}</span>}
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{p.nama}</div>
               <div style={{fontSize:12,color:C.textSub}}>per {p.satuan}</div>
               <div style={{color:C.green,fontWeight:800,fontSize:14,marginTop:3}}>{fmt(p.harga)}</div>
+              {p.pakets&&p.pakets.length>0&&(
+                <div style={{fontSize:10,color:C.amber,fontWeight:600,marginTop:2}}>
+                  🏷️ {p.pakets.sort((a,b)=>a.minQty-b.minQty).map(pk=>"≥"+pk.minQty+" → "+fmt(pk.harga)).join(" | ")}
+                </div>
+              )}
             </div>
             <div style={{textAlign:"right",flexShrink:0}}>
               <div style={{fontSize:22,fontWeight:900,color:p.stok<20?C.red:C.greenDark}}>{p.stok}</div>
@@ -740,49 +767,47 @@ function Barang({produk,setProduk,showToast}){
 }
 
 function Laporan({transaksi}){
-  const [mode,setMode]=useState("harian"); // harian | bulanan
-  const [tgl,setTgl]=useState(todayISO());
+  const [mode,setMode] = useState("harian");
+  const [tgl,setTgl] = useState(todayISO());
 
-  // Data harian
-  const txHari=transaksi.filter(t=>normTgl(t.tanggal)===tgl);
-  const totalHari=txHari.reduce((s,t)=>s+t.total,0);
-  const rekapHari={};
+  const txHari = transaksi.filter(t=>normTgl(t.tanggal)===tgl);
+  const totalHari = txHari.reduce((s,t)=>s+t.total,0);
+  const rekapHari = {};
   txHari.forEach(tx=>tx.items.forEach(it=>{
-    if(!rekapHari[it.produk])rekapHari[it.produk]={qty:0,total:0,satuan:it.satuan};
-    rekapHari[it.produk].qty+=it.qty;rekapHari[it.produk].total+=it.subtotal;
+    if(!rekapHari[it.produk]) rekapHari[it.produk]={qty:0,total:0,satuan:it.satuan};
+    rekapHari[it.produk].qty+=it.qty; rekapHari[it.produk].total+=it.subtotal;
   }));
-  const listHari=Object.entries(rekapHari).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total);
-  const maxHari=listHari[0]?.total||1;
+  const listHari = Object.entries(rekapHari).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total);
+  const maxHari = listHari[0]?.total||1;
 
-  // Data bulanan — 6 bulan terakhir
-  const bulanMap={};
+  const bulanMap = {};
   transaksi.forEach(tx=>{
-    const b=normTgl(tx.tanggal).slice(0,7)||"";
-    if(b)bulanMap[b]=(bulanMap[b]||0)+tx.total;
+    const b = normTgl(tx.tanggal).slice(0,7);
+    if(b) bulanMap[b]=(bulanMap[b]||0)+tx.total;
   });
-  const bulanList=Object.entries(bulanMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
-  const maxBulan=Math.max(...bulanList.map(([,v])=>v),1);
+  const bulanList = Object.entries(bulanMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+  const maxBulan = Math.max(...bulanList.map(([,v])=>v),1);
 
-  // Data produk all-time
-  const produkMap={};
+  const produkMap = {};
   transaksi.forEach(tx=>tx.items.forEach(it=>{
-    if(!produkMap[it.produk])produkMap[it.produk]={qty:0,total:0};
-    produkMap[it.produk].qty+=it.qty;produkMap[it.produk].total+=it.subtotal;
+    if(!produkMap[it.produk]) produkMap[it.produk]={qty:0,total:0};
+    produkMap[it.produk].qty+=it.qty; produkMap[it.produk].total+=it.subtotal;
   }));
-  const produkList=Object.entries(produkMap).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total).slice(0,6);
-  const maxProduk=produkList[0]?.total||1;
+  const produkList = Object.entries(produkMap).map(([nama,d])=>({nama,...d})).sort((a,b)=>b.total-a.total).slice(0,6);
+  const maxProduk = produkList[0]?.total||1;
 
-  const fmtBulan=(b)=>{
-    const [y,m]=b.split("-");
-    const names=["","Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+  const fmtBulan = (b) => {
+    const [y,m] = b.split("-");
+    const names = ["","Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
     return names[parseInt(m)]+" "+y.slice(2);
   };
 
+  const totalAllTime = transaksi.reduce((s,t)=>s+t.total,0);
+
   return(
     <div>
-      {/* Toggle */}
       <div style={{display:"flex",gap:8,marginBottom:14}}>
-        {[{k:"harian",l:"Harian"},{k:"bulanan",l:"Bulanan & Produk"}].map(({k,l})=>(
+        {[{k:"harian",l:"Harian"},{k:"bulanan",l:"Tren & Produk"}].map(({k,l})=>(
           <button key={k} onClick={()=>setMode(k)} style={{...css.btnS(mode===k?"p":"g"),flex:1,justifyContent:"center"}}>{l}</button>
         ))}
       </div>
@@ -798,18 +823,17 @@ function Laporan({transaksi}){
             <div style={css.bigN}>{fmt(totalHari)}</div>
             <div style={{display:"flex",gap:16,marginTop:10,fontSize:13,opacity:0.85}}>
               <span>{txHari.length} transaksi</span><span>·</span>
-              <span>{listHari.reduce((s,r)=>s+r.qty,0)} item terjual</span>
+              <span>{listHari.reduce((s,r)=>s+r.qty,0)} item</span>
             </div>
           </div>
-
           {listHari.length===0?(
-            <div style={{textAlign:"center",color:C.textSub,padding:"40px 0",fontSize:14}}>
+            <div style={{textAlign:"center",color:C.textSub,padding:"40px 0"}}>
               <div style={{fontSize:40,marginBottom:12}}>📋</div>
-              Tidak ada transaksi pada tanggal ini
+              Tidak ada transaksi
             </div>
           ):(
             <>
-              <div style={css.sec}>Produk Terjual Hari Ini</div>
+              <div style={css.sec}>Produk Terjual</div>
               {listHari.map((r,i)=>(
                 <div key={r.nama} style={css.card}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -823,11 +847,10 @@ function Laporan({transaksi}){
                     <div style={{color:C.green,fontWeight:900,fontSize:14}}>{fmt(r.total)}</div>
                   </div>
                   <div style={{height:8,background:C.bgSub,borderRadius:4}}>
-                    <div style={{height:"100%",width:""+(r.total/maxHari*100)+"%",background:i===0?C.green:i===1?C.teal:"#94a3b8",borderRadius:4,transition:"width 0.5s"}}/>
+                    <div style={{height:"100%",width:""+(r.total/maxHari*100)+"%",background:i===0?C.green:i===1?C.teal:"#94a3b8",borderRadius:4}}/>
                   </div>
                 </div>
               ))}
-
               <div style={css.sec}>Detail Transaksi</div>
               {txHari.map(tx=>(
                 <div key={tx.id} style={css.card}>
@@ -837,7 +860,8 @@ function Laporan({transaksi}){
                   </div>
                   {tx.items.map((it,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.textSub,padding:"3px 0",borderTop:"1px solid "+C.bgSub}}>
-                      <span>{it.produk} x{it.qty}</span><span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
+                      <span>{it.produk} x{it.qty}{it.diskon?" 🏷️":""}</span>
+                      <span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
                     </div>
                   ))}
                 </div>
@@ -849,59 +873,57 @@ function Laporan({transaksi}){
 
       {mode==="bulanan"&&(
         <div>
-          {/* Grafik Bulanan */}
-          <div style={css.sec}>Penjualan 6 Bulan Terakhir</div>
-          <div style={css.card}>
-            {bulanList.length===0?(
-              <div style={{textAlign:"center",color:C.textSub,padding:20,fontSize:13}}>Belum ada data</div>
-            ):(
-              <div>
-                {bulanList.map(([b,v])=>(
-                  <div key={b} style={{marginBottom:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontSize:12,fontWeight:700,color:C.textMid}}>{fmtBulan(b)}</span>
-                      <span style={{fontSize:12,fontWeight:800,color:C.green}}>{fmt(v)}</span>
-                    </div>
-                    <div style={{height:10,background:C.bgSub,borderRadius:6}}>
-                      <div style={{height:"100%",width:""+(v/maxBulan*100)+"%",background:"linear-gradient(90deg,"+C.greenDark+","+C.green+")",borderRadius:6,transition:"width 0.6s"}}/>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Grafik Top Produk */}
-          <div style={css.sec}>Top Produk (All Time)</div>
-          <div style={css.card}>
-            {produkList.length===0?(
-              <div style={{textAlign:"center",color:C.textSub,padding:20,fontSize:13}}>Belum ada data</div>
-            ):(
-              <div>
-                {produkList.map((r,i)=>(
-                  <div key={r.nama} style={{marginBottom:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <div style={{background:i===0?C.green:i===1?C.teal:i===2?C.amber:C.border,borderRadius:5,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:C.white,fontSize:10}}>{i+1}</div>
-                        <span style={{fontSize:12,fontWeight:700,color:C.textMid}}>{r.nama}</span>
-                      </div>
-                      <span style={{fontSize:12,fontWeight:800,color:C.green}}>{fmt(r.total)}</span>
-                    </div>
-                    <div style={{height:10,background:C.bgSub,borderRadius:6}}>
-                      <div style={{height:"100%",width:""+(r.total/maxProduk*100)+"%",background:i===0?"linear-gradient(90deg,"+C.greenDark+","+C.green+")":i===1?"linear-gradient(90deg,#0f766e,"+C.teal+")":"linear-gradient(90deg,#92400e,"+C.amber+")",borderRadius:6}}/>
-                    </div>
-                    <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{r.qty} item terjual</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Ringkasan total */}
           <div style={css.hero}>
             <div style={{fontSize:12,fontWeight:700,opacity:0.8}}>TOTAL OMSET ALL TIME</div>
-            <div style={css.bigN}>{fmt(transaksi.reduce((s,t)=>s+t.total,0))}</div>
+            <div style={css.bigN}>{fmt(totalAllTime)}</div>
             <div style={{fontSize:13,opacity:0.85,marginTop:8}}>{transaksi.length} transaksi total</div>
+          </div>
+
+          <div style={css.sec}>Penjualan per Bulan</div>
+          <div style={css.card}>
+            {bulanList.length===0?(
+              <div style={{textAlign:"center",color:C.textSub,padding:20}}>Belum ada data</div>
+            ):(
+              bulanList.map(([b,v])=>(
+                <div key={b} style={{marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                    <span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtBulan(b)}</span>
+                    <span style={{fontSize:13,fontWeight:800,color:C.green}}>{fmt(v)}</span>
+                  </div>
+                  <div style={{height:12,background:C.bgSub,borderRadius:6}}>
+                    <div style={{height:"100%",width:""+(v/maxBulan*100)+"%",background:"linear-gradient(90deg,"+C.greenDark+","+C.green+")",borderRadius:6}}/>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div style={css.sec}>Top Produk All Time</div>
+          <div style={css.card}>
+            {produkList.length===0?(
+              <div style={{textAlign:"center",color:C.textSub,padding:20}}>Belum ada data</div>
+            ):(
+              produkList.map((r,i)=>{
+                const colors = [C.green,C.teal,C.amber,"#7c3aed","#db2777","#ea580c"];
+                return(
+                  <div key={r.nama} style={{marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,alignItems:"center"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:7}}>
+                        <div style={{background:colors[i]||C.textMuted,borderRadius:6,width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:C.white,fontSize:11}}>{i+1}</div>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:700,color:C.textMid}}>{r.nama}</div>
+                          <div style={{fontSize:10,color:C.textMuted}}>{r.qty} item terjual</div>
+                        </div>
+                      </div>
+                      <span style={{fontSize:12,fontWeight:800,color:colors[i]||C.green}}>{fmt(r.total)}</span>
+                    </div>
+                    <div style={{height:10,background:C.bgSub,borderRadius:6}}>
+                      <div style={{height:"100%",width:""+(r.total/maxProduk*100)+"%",background:colors[i]||C.green,borderRadius:6}}/>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
