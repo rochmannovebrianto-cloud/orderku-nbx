@@ -318,6 +318,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
   const [keranjang,setKeranjang] = useState({});
   const [saving,setSaving] = useState(false);
   const [showHistory,setShowHistory] = useState(false);
+  const [paketModal,setPaketModal] = useState(null); // produk yang dilihat paketnya
 
   const outlet = outlets.find(o=>o.id===outletId);
 
@@ -376,6 +377,43 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
     setSaving(false);
   };
 
+  // Paket Modal
+  const PaketModal = paketModal ? (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setPaketModal(null)}>
+      <div style={{background:C.white,borderRadius:"20px 20px 0 0",padding:24,width:"100%",maxWidth:480,boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:16,color:C.greenDark}}>{paketModal.nama}</div>
+            <div style={{fontSize:12,color:C.textSub}}>Strata Harga</div>
+          </div>
+          <button onClick={()=>setPaketModal(null)} style={{background:"none",border:"none",cursor:"pointer",color:C.textSub}}><Ic n="close" sz={22}/></button>
+        </div>
+        <div style={{...css.card,background:C.bgSub,marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,fontWeight:700,color:C.textSub,marginBottom:8}}>
+            <span>Qty</span><span>Harga per {paketModal.satuan}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"1px solid "+C.border}}>
+            <span style={{fontSize:13,color:C.textMid}}>1 - {paketModal.pakets&&paketModal.pakets.length>0?paketModal.pakets.sort((a,b)=>a.minQty-b.minQty)[0].minQty-1:"∞"} {paketModal.satuan}</span>
+            <span style={{fontSize:13,fontWeight:800,color:C.green}}>{fmt(paketModal.harga)}</span>
+          </div>
+          {paketModal.pakets&&paketModal.pakets.sort((a,b)=>a.minQty-b.minQty).map((pk,i)=>{
+            const next = paketModal.pakets.sort((a,b)=>a.minQty-b.minQty)[i+1];
+            return(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"1px solid "+C.border}}>
+                <span style={{fontSize:13,color:C.textMid}}>≥ {pk.minQty}{next?" - "+(next.minQty-1):""+" ↑"} {paketModal.satuan}</span>
+                <div style={{textAlign:"right"}}>
+                  <span style={{fontSize:13,fontWeight:800,color:C.amber}}>{fmt(pk.harga)}</span>
+                  <div style={{fontSize:10,color:C.textMuted}}>hemat {fmt(paketModal.harga-pk.harga)}/sak</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={()=>setPaketModal(null)} style={css.btn()}>Tutup</button>
+      </div>
+    </div>
+  ) : null;
+
   if(showHistory) return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -400,10 +438,19 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
               <span style={{fontWeight:600}}>{fmt(it.subtotal)}</span>
             </div>
           ))}
-          {!tx.kirimWA&&(
-            <div style={{display:"flex",gap:8,marginTop:10}}>
-              <button onClick={()=>kirimWA(tx,true)} style={{...css.btn("wa"),flex:2,marginTop:0,fontSize:12,padding:"10px 12px"}}><Ic n="wa" sz={15}/>Kirim ke Admin</button>
-              <button onClick={()=>kirimWA(tx,false)} style={{...css.btn("g"),flex:1,marginTop:0,fontSize:11,padding:"10px",color:C.textMid}}>Outlet</button>
+          {!tx.kirimWA?(
+            <div style={{marginTop:10}}>
+              <div style={{background:C.amberPale,borderRadius:8,padding:"7px 10px",marginBottom:8,fontSize:11,color:C.amber,fontWeight:600}}>
+                ⚠️ Pastikan order ini BELUM dikirim ke admin sebelumnya untuk hindari dobel order!
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{if(window.confirm("Yakin kirim ke Admin WA? Pastikan belum pernah dikirim!"))kirimWA(tx,true);}} style={{...css.btn("wa"),flex:2,marginTop:0,fontSize:12,padding:"10px 12px"}}><Ic n="wa" sz={15}/>Kirim ke Admin</button>
+                <button onClick={()=>{if(window.confirm("Kirim ke WA Outlet?"))kirimWA(tx,false);}} style={{...css.btn("g"),flex:1,marginTop:0,fontSize:11,padding:"10px",color:C.textMid}}>Outlet</button>
+              </div>
+            </div>
+          ):(
+            <div style={{marginTop:10,background:C.greenPale,borderRadius:8,padding:"7px 10px",fontSize:11,color:C.green,fontWeight:600,textAlign:"center"}}>
+              ✅ Sudah dikirim ke Admin WA
             </div>
           )}
         </div>
@@ -422,13 +469,14 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             {i<2&&<div style={{width:14,height:2,background:C.border}}/>}
           </div>
         ))}
-        <div style={{flex:1}}/>
-        <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
       </div>
 
       {step==="outlet"&&(
         <div>
-          <div style={css.sec}>Pilih Outlet</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={css.sec}>Pilih Outlet</div>
+            <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
+          </div>
           {outlets.filter(o=>o.aktif).map(o=>(
             <div key={o.id} onClick={()=>{setOutletId(o.id);setStep("katalog");}} style={{...css.card,cursor:"pointer"}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -446,6 +494,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
         </div>
       )}
 
+      {PaketModal}
       {step==="katalog"&&(
         <div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -454,7 +503,6 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
               <div style={{fontSize:12,color:C.green,fontWeight:700,marginTop:-6}}>🏪 {outlet&&outlet.nama}</div>
             </div>
             <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
               <button onClick={()=>setStep("outlet")} style={css.btnS("g")}><Ic n="close" sz={12}/>Ganti</button>
             </div>
           </div>
@@ -476,7 +524,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
                     {!p.foto&&<span style={{fontSize:44}}>{p.emoji||"📦"}</span>}
                     {qty>0&&<div style={{position:"absolute",top:6,right:6,background:C.green,color:C.white,borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13}}>{qty}</div>}
                     {p.stok<20&&<div style={{position:"absolute",top:6,left:6,background:C.red,color:C.white,borderRadius:6,padding:"2px 5px",fontSize:9,fontWeight:700}}>Tipis!</div>}
-                    {adaPaket&&<div style={{position:"absolute",bottom:6,left:6,background:C.amber,color:C.white,borderRadius:6,padding:"2px 5px",fontSize:9,fontWeight:700}}>🏷️ Paket</div>}
+                    {adaPaket&&<div onClick={(e)=>{e.stopPropagation();setPaketModal(p);}} style={{position:"absolute",bottom:6,left:6,background:C.amber,color:C.white,borderRadius:6,padding:"2px 5px",fontSize:9,fontWeight:700,cursor:"pointer"}}>🏷️ Paket</div>}
                   </div>
                   <div style={{padding:"8px 10px 10px"}}>
                     <div style={{fontWeight:700,fontSize:12,marginBottom:1,lineHeight:1.3}}>{p.nama}</div>
