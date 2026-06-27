@@ -533,13 +533,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
                       <span style={{color:adaDiskon?C.red:C.green,fontWeight:800,fontSize:13}}>{fmt(qty>0?harga:p.harga)}</span>
                       {adaDiskon&&<span style={{color:C.textMuted,fontSize:10,textDecoration:"line-through",marginLeft:4}}>{fmt(p.harga)}</span>}
                     </div>
-                    {adaPaket&&qty===0&&(
-                      <div style={{fontSize:9,color:C.amber,marginBottom:4}}>
-                        {p.pakets.sort((a,b)=>a.minQty-b.minQty).map((pk,i)=>(
-                          <div key={i}>Min {pk.minQty} → {fmt(pk.harga)}</div>
-                        ))}
-                      </div>
-                    )}
+
                     {qty===0
                       ?<button onClick={()=>add(p.id)} style={{background:C.green,color:C.white,border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:12,cursor:"pointer",width:"100%"}}>+ Keranjang</button>
                       :<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:C.greenPale,borderRadius:8,padding:"4px 8px"}}>
@@ -737,19 +731,28 @@ function Barang({produk,setProduk,showToast}){
 
           <div style={{marginBottom:12}}>
             <div style={css.lbl}>Foto Produk</div>
-            <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <div onClick={()=>fileRef.current.click()} style={{width:72,height:72,borderRadius:12,border:"2px dashed "+C.green,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:C.bgSub,flexShrink:0}}>
-                {form.foto?<img src={form.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="foto" onError={e=>{e.target.style.display="none";}}/>:<Ic n="img" sz={28}/>}
+            <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8}}>
+              <div style={{width:72,height:72,borderRadius:12,border:"1px solid "+C.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",background:C.bgSub,flexShrink:0}}>
+                {form.foto
+                  ?<img src={form.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="foto" onError={e=>{e.target.style.display="none";}}/>
+                  :<span style={{fontSize:34}}>{form.emoji||"📦"}</span>}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
-              <div>
-                <div style={{fontSize:12,color:C.textSub,marginBottom:6}}>atau pilih emoji:</div>
-                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                  {emojis.map(e=>(
-                    <button key={e} onClick={()=>setForm(f=>({...f,emoji:e,foto:""}))} style={{fontSize:18,background:form.emoji===e&&!form.foto?C.greenPale:C.bgSub,border:"1.5px solid "+(form.emoji===e&&!form.foto?C.green:C.border),borderRadius:7,padding:"4px 8px",cursor:"pointer"}}>{e}</button>
-                  ))}
+              <div style={{flex:1}}>
+                <div style={{fontSize:11,color:C.textSub,marginBottom:4}}>Paste URL foto (Google Drive / ImgBB):</div>
+                <input style={{...css.inp,fontSize:12}} placeholder="https://drive.google.com/uc?id=..." value={form.foto} onChange={e=>setForm(f=>({...f,foto:e.target.value}))}/>
+                <div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
+                  <div style={{fontSize:11,color:C.textMuted}}>atau dari HP:</div>
+                  <button onClick={()=>fileRef.current.click()} style={{...css.btnS("g"),fontSize:11,padding:"4px 10px"}}><Ic n="img" sz={11}/>Upload</button>
+                  {form.foto&&<button onClick={()=>setForm(f=>({...f,foto:""}))} style={{...css.btnS("r"),fontSize:11,padding:"4px 10px"}}>Hapus</button>}
                 </div>
               </div>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
+            <div style={{fontSize:11,color:C.textSub,marginBottom:4}}>Pilih emoji (jika tidak ada foto):</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {emojis.map(e=>(
+                <button key={e} onClick={()=>setForm(f=>({...f,emoji:e,foto:""}))} style={{fontSize:18,background:form.emoji===e&&!form.foto?C.greenPale:C.bgSub,border:"1.5px solid "+(form.emoji===e&&!form.foto?C.green:C.border),borderRadius:7,padding:"4px 8px",cursor:"pointer"}}>{e}</button>
+              ))}
             </div>
           </div>
 
