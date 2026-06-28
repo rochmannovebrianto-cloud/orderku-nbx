@@ -112,8 +112,12 @@ export default function OrderKuNBX() {
     const r = await apiCall("getData");
     if(r.success){
       if(r.outlets) setOutlets(r.outlets);
-      if(r.produk) setProduk(r.produk);
-      if(r.transaksi) setTransaksi(r.transaksi);
+      if(r.produk) setProduk(r.produk.map(p=>({...p,pakets:p.pakets||[]})));
+      if(r.transaksi) setTransaksi(r.transaksi.map(t=>({
+        ...t,
+        // Normalisasi kirimWA dari berbagai format Sheets
+        kirimWA: t.kirimWA===true||t.kirimWA==="TRUE"||t.kirimWA===1||t.kirimWA==="1"||String(t.kirimWA).toLowerCase()==="true",
+      })));
       setSynced(true); showToast("Data tersinkron!");
     } else showToast("Gagal sinkron","err");
   },[]);
