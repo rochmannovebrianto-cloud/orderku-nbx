@@ -348,12 +348,18 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
   });
   const hapusItem = (id) => setKeranjang(prev=>{const n={...prev};delete n[id];return n;});
 
-  const kirimWA = (tx, isAdmin=true) => {
+  const kirimWA = async(tx, isAdmin=true) => {
     const nomor = isAdmin ? ADMIN_WA : (tx.outletKontak||"").replace(/[^0-9]/g,"").replace(/^0/,"62");
     const pesan = buildPesanWA(tx, produk);
     window.open("https://wa.me/"+nomor+"?text="+encodeURIComponent(pesan),"_blank");
-    setTransaksi(prev=>prev.map(t=>t.id===tx.id?{...t,kirimWA:true,kirimWAAt:normTgl(tx.tanggal)}:t));
-    showToast("WhatsApp terbuka!","wa");
+    const tglKirim = normTgl(tx.tanggal);
+    // Update state di app
+    setTransaksi(prev=>prev.map(t=>t.id===tx.id?{...t,kirimWA:true,kirimWAAt:tglKirim}:t));
+    // Update ke Google Sheets
+    if(!APPS_SCRIPT_URL.includes("GANTI")) {
+      await apiCall("updateKirimWA",{id:tx.id,kirimWAAt:tglKirim});
+    }
+    showToast("WhatsApp terbuka! Status tersimpan ✅","wa");
   };
 
   const checkout = async() => {
