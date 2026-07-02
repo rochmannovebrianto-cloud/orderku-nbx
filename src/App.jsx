@@ -298,7 +298,9 @@ function buildPesanWA(tx, produkList) {
   const kontak = (tx.outletKontak||"-").replace(/^62/,"0").replace(/([0-9]{4})([0-9]{4})([0-9]+)/,"$1-$2-$3");
   const lines = tx.items.map(i=>{
     const p = produkList.find(p=>p.nama===i.produk);
-    return (p&&p.emoji?p.emoji:"📦")+" "+i.produk+" x "+i.qty+" "+i.satuan+(i.diskon?" (paket)":"");
+    const em = (p&&p.emoji?p.emoji:"📦");
+    const discInfo = i.pctDiskon>0?" (-"+i.pctDiskon+"%)":i.diskon?" (paket)":"";
+    return em+" "+i.produk+" x "+i.qty+" "+i.satuan+" = "+fmt(i.subtotal)+discInfo;
   }).join("\n");
   const rekapSatuan = {};
   tx.items.forEach(i=>{ rekapSatuan[i.satuan]=(rekapSatuan[i.satuan]||0)+i.qty; });
@@ -320,6 +322,8 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
   const [step,setStep] = useState("outlet");
   const [outletId,setOutletId] = useState("");
   const [keranjang,setKeranjang] = useState({});
+  const [diskonManual,setDiskonManual] = useState({});
+  const [searchOutlet,setSearchOutlet] = useState("");
   const [saving,setSaving] = useState(false);
   const [showHistory,setShowHistory] = useState(false);
   const [paketModal,setPaketModal] = useState(null); // produk yang dilihat paketnya
@@ -337,12 +341,17 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
   };
 
   const totalItem = Object.values(keranjang).reduce((s,q)=>s+q,0);
-  const totalHarga = Object.entries(keranjang).reduce((s,[id,qty])=>s+getHarga(id,qty)*qty,0);
+  const totalHarga = Object.entries(keranjang).reduce((s,[id,qty])=>{
+    const h = getHarga(id,qty);
+    const disc = diskonManual[id]||0;
+    return s + (h - h*disc/100)*qty;
+  },0);
 
-  const add = (id) => setKeranjang(prev=>({...prev,[id]:(prev[id]||0)+1}));
+  const add = (id) => setKeranjang(prev=>({...prev,[id]:Math.round(((prev[id]||0)+1)*2)/2}));
   const kurang = (id) => setKeranjang(prev=>{
     const n={...prev};
-    if(n[id]>1) n[id]--;
+    const newQty = Math.round((n[id]-0.5)*2)/2;
+    if(newQty>0) n[id]=newQty;
     else delete n[id];
     return n;
   });
@@ -369,7 +378,9 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
     const txItems = valid.map(([id,qty])=>{
       const p = produk.find(p=>p.id===id);
       const h = getHarga(id,qty);
-      return {produk:p.nama,qty,satuan:p.satuan,harga:h,subtotal:h*qty,diskon:h<p.harga};
+      const disc = diskonManual[id]||0;
+      const hFinal = h - h*disc/100;
+      return {produk:p.nama,qty,satuan:p.satuan,harga:hFinal,subtotal:hFinal*qty,diskon:disc>0||h<p.harga,pctDiskon:disc};
     });
     const tx = {
       id:"T"+uid(),
@@ -382,7 +393,7 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
     };
     if(!APPS_SCRIPT_URL.includes("GANTI")) await apiCall("addTransaksi",{transaksi:tx});
     setTransaksi(prev=>[...prev,tx]);
-    setKeranjang({}); setOutletId(""); setStep("outlet");
+    setKeranjang({}); setDiskonManual({}); setOutletId(""); setStep("outlet");
     showToast("Order tersimpan ke rekapan!");
     setSaving(false);
   };
@@ -487,8 +498,20 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             <div style={css.sec}>Pilih Outlet</div>
             <button onClick={()=>setShowHistory(true)} style={css.btnS("g")}><Ic n="chart" sz={12}/>Riwayat</button>
           </div>
-          {outlets.filter(o=>o.aktif).map(o=>(
-            <div key={o.id} onClick={()=>{setOutletId(o.id);setStep("katalog");}} style={{...css.card,cursor:"pointer"}}>
+          {/* Search outlet */}
+          <div style={{position:"relative",marginBottom:12}}>
+            <input
+              style={{...css.inp,paddingLeft:36}}
+              placeholder="🔍 Cari nama outlet..."
+              value={searchOutlet}
+              onChange={e=>setSearchOutlet(e.target.value)}
+            />
+            {searchOutlet&&(
+              <button onClick={()=>setSearchOutlet("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:C.textMuted,fontSize:16}}>×</button>
+            )}
+          </div>
+          {outlets.filter(o=>o.aktif&&(!searchOutlet||o.nama.toLowerCase().includes(searchOutlet.toLowerCase())||o.alamat.toLowerCase().includes(searchOutlet.toLowerCase()))).map(o=>(
+            <div key={o.id} onClick={()=>{setOutletId(o.id);setStep("katalog");setSearchOutlet("");}} style={{...css.card,cursor:"pointer"}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:46,height:46,borderRadius:10,background:C.greenPale,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:C.green}}><Ic n="store" sz={24}/></div>
                 <div style={{flex:1}}>
@@ -501,6 +524,9 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             </div>
           ))}
           {outlets.filter(o=>o.aktif).length===0&&<div style={{textAlign:"center",color:C.textSub,padding:40,fontSize:13}}>Tambah outlet dulu di menu Outlet!</div>}
+          {outlets.filter(o=>o.aktif).length>0&&outlets.filter(o=>o.aktif&&(!searchOutlet||o.nama.toLowerCase().includes(searchOutlet.toLowerCase())||o.alamat.toLowerCase().includes(searchOutlet.toLowerCase()))).length===0&&(
+            <div style={{textAlign:"center",color:C.textSub,padding:30,fontSize:13}}>Outlet "{searchOutlet}" tidak ditemukan</div>
+          )}
         </div>
       )}
 
@@ -574,38 +600,93 @@ function Transaksi({outlets,produk,transaksi,setTransaksi,showToast}){
             const p = produk.find(p=>p.id===id);
             if(!p) return null;
             const h = getHarga(id,qty);
-            const diskon = h<p.harga;
+            const paketDiskon = h<p.harga;
+            const manualDiskon = diskonManual[id]||0;
+            const hAfterDiskon = Math.max(0, h - (h * manualDiskon / 100));
+            const subtotal = hAfterDiskon * qty;
             return(
-              <div key={id} style={{...css.card,display:"flex",gap:10,alignItems:"center",padding:12}}>
-                <div style={{width:50,height:50,borderRadius:10,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
-                  {p.foto?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";}}/>:<span style={{fontSize:26}}>{p.emoji||"📦"}</span>}
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{p.nama}</div>
-                  <div style={{fontSize:11,color:C.textSub}}>
-                    <span style={{color:diskon?C.red:C.textSub}}>{fmt(h)}</span>
-                    {diskon&&<span style={{textDecoration:"line-through",marginLeft:4,color:C.textMuted}}>{fmt(p.harga)}</span>}
-                    <span style={{marginLeft:4}}>/ {p.satuan}</span>
-                    {diskon&&<span style={css.pill("a")} > 🏷️ Paket</span>}
+              <div key={id} style={{...css.card,padding:12}}>
+                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8}}>
+                  <div style={{width:46,height:46,borderRadius:10,background:C.bgSub,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                    {p.foto?<img src={p.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={p.nama} onError={e=>{e.target.style.display="none";}}/>:<span style={{fontSize:24}}>{p.emoji||"📦"}</span>}
                   </div>
-                  <div style={{color:C.green,fontWeight:800}}>{fmt(h*qty)}</div>
-                </div>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:8,padding:"4px 8px"}}>
-                    <button onClick={()=>kurang(id)} style={{background:C.green,color:C.white,border:"none",borderRadius:5,width:24,height:24,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>-</button>
-                    <span style={{fontWeight:800,minWidth:20,textAlign:"center"}}>{qty}</span>
-                    <button onClick={()=>add(id)} style={{background:C.green,color:C.white,border:"none",borderRadius:5,width:24,height:24,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:13}}>{p.nama}</div>
+                    <div style={{fontSize:11,color:C.textSub}}>{fmt(h)} / {p.satuan}{paketDiskon&&<span style={{...css.pill("a"),marginLeft:4}}>🏷️ Paket</span>}</div>
                   </div>
-                  <button onClick={()=>hapusItem(id)} style={{background:"none",border:"none",cursor:"pointer",color:C.red}}><Ic n="trash" sz={16}/></button>
+                  <button onClick={()=>hapusItem(id)} style={{background:"none",border:"none",cursor:"pointer",color:C.red,flexShrink:0}}><Ic n="trash" sz={16}/></button>
+                </div>
+
+                <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+                  {/* Qty dengan input langsung + tombol setengah */}
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:C.textSub,marginBottom:3}}>Qty ({p.satuan})</div>
+                    <div style={{display:"flex",alignItems:"center",gap:4}}>
+                      <button onClick={()=>kurang(id)} style={{background:C.green,color:C.white,border:"none",borderRadius:6,width:28,height:28,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>-</button>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        value={qty}
+                        onChange={e=>{
+                          const v=parseFloat(e.target.value)||0.5;
+                          setKeranjang(prev=>({...prev,[id]:v}));
+                        }}
+                        style={{...css.inp,textAlign:"center",padding:"5px",fontSize:14,fontWeight:800,width:56,flex:"none"}}
+                      />
+                      <button onClick={()=>add(id)} style={{background:C.green,color:C.white,border:"none",borderRadius:6,width:28,height:28,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>+</button>
+                    </div>
+                    <button onClick={()=>setKeranjang(prev=>({...prev,[id]:0.5}))} style={{fontSize:10,color:C.amber,background:"none",border:"none",cursor:"pointer",padding:"2px 0",textDecoration:"underline"}}>½ {p.satuan}</button>
+                  </div>
+
+                  {/* Diskon manual */}
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:C.textSub,marginBottom:3}}>Diskon (%)</div>
+                    <div style={{display:"flex",alignItems:"center",gap:4}}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={manualDiskon}
+                        onChange={e=>{
+                          const v=Math.min(100,Math.max(0,Number(e.target.value)||0));
+                          setDiskonManual(prev=>({...prev,[id]:v}));
+                        }}
+                        style={{...css.inp,textAlign:"center",padding:"5px",fontSize:14,fontWeight:700,width:"100%"}}
+                        placeholder="0"
+                      />
+                      <span style={{fontSize:12,fontWeight:700,color:C.textSub,flexShrink:0}}>%</span>
+                    </div>
+                    {manualDiskon>0&&<div style={{fontSize:10,color:C.red,marginTop:2}}>Hemat {fmt(h*manualDiskon/100*qty)}</div>}
+                  </div>
+                </div>
+
+                {/* Subtotal */}
+                <div style={{background:C.greenPale,borderRadius:8,padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:C.textSub}}>{qty} × {fmt(hAfterDiskon)}</span>
+                  <span style={{fontWeight:800,color:C.green,fontSize:14}}>{fmt(subtotal)}</span>
                 </div>
               </div>
             );
           })}
           <div style={{...css.card,background:"linear-gradient(135deg,"+C.greenPale+",#f0fdf4)",border:"1.5px solid "+C.green}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-              <span style={{color:C.textMid}}>Total Item</span><span style={{fontWeight:700}}>{totalItem} item</span>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{color:C.textMid}}>Total Item</span>
+              <span style={{fontWeight:700}}>{Object.values(keranjang).reduce((s,q)=>s+q,0)} {Object.keys(keranjang).length>0&&produk.find(p=>p.id===Object.keys(keranjang)[0])?.satuan||"item"}</span>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between"}}>
+            {Object.values(diskonManual).some(d=>d>0)&&(
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <span style={{color:C.red,fontSize:12}}>Ada diskon khusus</span>
+                <span style={{color:C.red,fontSize:12,fontWeight:700}}>
+                  -{fmt(Object.entries(keranjang).reduce((s,[id,qty])=>{
+                    const h=getHarga(id,qty);
+                    return s+(h*(diskonManual[id]||0)/100*qty);
+                  },0))}
+                </span>
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid "+C.border,paddingTop:8,marginTop:4}}>
               <span style={{fontWeight:800,fontSize:15}}>Total Bayar</span>
               <span style={{fontSize:24,fontWeight:900,color:C.green}}>{fmt(totalHarga)}</span>
             </div>
